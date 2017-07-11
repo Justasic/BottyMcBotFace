@@ -79,10 +79,10 @@ set(CFLAGS "${CFLAGS} -g -Werror=implicit-function-declaration -Wall -Wextra -Wn
 
 if (CLANG_LIBCPP)
     # Find Libc++ and set appropriate variables
-    find_package(LIBCXX REQUIRED)
-    include_directories(${LIBCXX_INCLUDE_DIR})
+    #find_package(LIBCXX REQUIRED)
+    #include_directories(${LIBCXX_INCLUDE_DIR})
     #target_link_libraries(${LIBCXX_LIBRARY})
-    set(CFLAGS "${CFLAGS} ${LIBCXX_OPTIONS}")
+    #set(CFLAGS "${CFLAGS} ${LIBCXX_OPTIONS}")
 endif (CLANG_LIBCPP)
 
 if (NOT HAVE_CXX1Z_FLAG)
