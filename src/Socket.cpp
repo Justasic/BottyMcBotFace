@@ -1,27 +1,38 @@
 /*************************************************************************
+ * BSD 2-Clause License
  *
- * CONFIDENTIAL
- * __________________
+ * Copyright (c) 2017, Justin Crawford
+ * Copyright (c) 2017, Billy Haugen
+ * All rights reserved.
  *
- *  2017 Justin Crawford
- *  All Rights Reserved.
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
  *
- * NOTICE:  All information contained herein is, and remains
- * the property of Justin Crawford, The intellectual and technical
- * concepts contained herein are proprietary to Justin Crawford
- * and his suppliers and may be covered by U.S. and Foreign Patents,
- * patents in process, and are protected by trade secret or copyright law.
- * Dissemination of this information or reproduction of this material
- * is strictly forbidden unless prior written permission is obtained
- * from Justin Crawford.
+ * * Redistributions of source code must retain the above copyright notice, this
+ *   list of conditions and the following disclaimer.
+ *
+ * * Redistributions in binary form must reproduce the above copyright notice,
+ *   this list of conditions and the following disclaimer in the documentation
+ *   and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+ * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+ * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "Exceptions.h"
 #include "Socket.h"
 #include "SocketMultiplexer.h"
-#include "Log.h"
 #include <unistd.h>
 #include <sys/types.h>
 #include <fcntl.h>
+#include <cstring>
 
 std::string Socket::GetAddress(sockaddr_t saddr)
 {
@@ -94,8 +105,6 @@ Socket::Socket(int sock, bool isipv6, int type)
 	// We pretty much ALWAYS want non-blocking sockets for this system.
 	this->SetNonBlocking(true);
 
-	SocketMultiplexer *mplexer = ProviderHandler::FindProviderDynamic<SocketMultiplexer>(PR_MULTIPLEXER);
-
 	// If we have a socket engine, add our socket to it, otherwise throw an exception.
 	if (mplexer)
 	{
@@ -110,9 +119,8 @@ Socket::Socket(int sock, bool isipv6, int type)
 
 Socket::~Socket()
 {
-	Log(LOG_VERBOSE) << "[Socket Engine] Destroying socket " << this->sock_fd;
-
-	SocketMultiplexer *mplexer = ProviderHandler::FindProviderDynamic<SocketMultiplexer>(PR_MULTIPLEXER);
+	//Log(LOG_VERBOSE) << "[Socket Engine] Destroying socket " << this->sock_fd;
+	tfm::printf("[Socket Engine] Destroying socket %d\n", this->sock_fd);
 
 	if (mplexer)
 		mplexer->RemoveSocket(this);
@@ -131,7 +139,8 @@ void Socket::SetNonBlocking(bool status)
 		flags &= ~O_NONBLOCK;
 
 	if (fcntl(this->sock_fd, F_SETFL, flags) == -1)
-		Log(LOG_SOCKET) << "Cannot set socket " << this->sock_fd << " as nonblocking with flag O_NONBLOCK: " << strerror(errno);
+		//Log(LOG_SOCKET) << "Cannot set socket " << this->sock_fd << " as nonblocking with flag O_NONBLOCK: " << strerror(errno);
+		tfm::printf("Cannot set socket %d as nonblocking with flag O_NONBLOCK: %s\n", this->sock_fd, strerror(errno));
 }
 
 size_t Socket::Write(const void *data, size_t len)
@@ -181,7 +190,8 @@ bool ConnectionSocket::MultiplexEvent()
 		{
 			errno = optval;
 			this->OnError(optval ? strerror(errno) : "");
-			Log(LOG_VERBOSE) << "Socket " << this->sock_fd << " being killed before connect() could finish.";
+			//Log(LOG_VERBOSE) << "Socket " << this->sock_fd << " being killed before connect() could finish.";
+			tfm::printf("Socket %d being killed before connect() could finish.", this->sock_fd);
 			this->status |= SS_DEAD;
 		}
 	}
@@ -228,8 +238,6 @@ void ConnectionSocket::Connect(const std::string &conaddr, short port)
 		default:
 			throw SocketException("Invalid host: %s", strerror(errno));
 	}
-
-	SocketMultiplexer *mplexer = ProviderHandler::FindProviderDynamic<SocketMultiplexer>(PR_MULTIPLEXER);
 
 	if (::connect(this->sock_fd, &this->sa.sa, sizeof(struct sockaddr)) == -1)
 	{
@@ -279,7 +287,8 @@ ListeningSocket::ListeningSocket(const std::string &bindaddr, short port, bool i
 		value = inet_pton(AF_INET, bindaddr.c_str(), &this->sa.ipv6.sin6_addr);
 	}
 	else
-		Log(LOG_WARN) << "Unknown family type " << this->sa.sa.sa_family;
+		//Log(LOG_WARN) << "Unknown family type " << this->sa.sa.sa_family;
+		tfm::printf("Unknown family type %s\n", this->sa.sa.sa_family);
 
 	switch(value)
 	{
@@ -298,7 +307,8 @@ ListeningSocket::ListeningSocket(const std::string &bindaddr, short port, bool i
 			throw SocketException("Unable to bind to %s:%s: %s (is ipv6? %s)", bindaddr, port, strerror(errno), this->sa.sa.sa_family == AF_INET ? "yes" : "no");
 	} catch (SocketException &e)
 	{
-		Log(LOG_ERROR) << "[Socket Engine]: " << e.what();
+		//Log(LOG_ERROR) << "[Socket Engine]: " << e.what();
+		tfm::printf("[Socket Engine]: %s\n", e.what());
 		goto retry;
 	}
 
@@ -327,7 +337,8 @@ bool ListeningSocket::MultiplexRead()
 			throw SocketException("ListenSocket::OnAccept() returned nullptr for client socket");
 	}
 	else
-		Log(LOG_SOCKET) << "[WARNING] Unable to accept connection: " << strerror(errno);
+		//Log(LOG_SOCKET) << "[WARNING] Unable to accept connection: " << strerror(errno);
+		tfm::printf("[WARNING] Unable to accept connection: %s\n", strerror(errno));
 
 	return true;
 }
