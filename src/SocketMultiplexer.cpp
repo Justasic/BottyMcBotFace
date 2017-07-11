@@ -47,6 +47,7 @@ SocketMultiplexer::SocketMultiplexer()
 
  SocketMultiplexer::~SocketMultiplexer()
  {
+	 this->Terminate();
  }
 
  Socket *SocketMultiplexer::FindSocket(int sock_fd)
