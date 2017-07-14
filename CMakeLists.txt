@@ -42,9 +42,39 @@ endif(EXISTS "${GIT_SHA_PATH}")
 SET(VERSION_SIMPLE "${PROJECT_MAJOR_VERSION}.${PROJECT_MINOR_VERSION}.${PROJECT_PATCH_LEVEL}")
 SET(VERSION_FULL "${PROJECT_MAJOR_VERSION}.${PROJECT_MINOR_VERSION}.${PROJECT_PATCH_LEVEL}-${VERSION_GIT}")
 
-message(STATUS "${PROJECT_NAME} version: ${VERSION_FULL}")
+# A macro to recursively get source files, however if the source folder has
+# a CMakeLists.txt file, include it as part of the build instead.
+macro(GetSources SRC CPPSOURCES)
+	if(NOT ${SRC} STREQUAL ${CMAKE_CURRENT_SOURCE_DIR} AND EXISTS "${SRC}/CMakeLists.txt")
+		# If we have a CMakeLists.txt file, include it instead of trying to compile
+		# sources as part of main project.
+		add_subdirectory("${SRC}")
+	else(NOT ${SRC} STREQUAL ${CMAKE_CURRENT_SOURCE_DIR} AND EXISTS "${SRC}/CMakeLists.txt")
+		# get a list of all files in the directory.
+		file(GLOB SRC_FLDR "${SRC}/*")
+		foreach(SOURCEFILE ${SRC_FLDR})
+			# If it's a directory, recursively call this function.
+			if (IS_DIRECTORY "${SOURCEFILE}")
+				GetSources(${SOURCEFILE} ${CPPSOURCES})
+			else (IS_DIRECTORY "${SOURCEFILE}")
+				# Otherwise look for source files and append them.
+				# Look for C++ files.
+				string(REGEX MATCH "\\.cpp$" CPP ${SOURCEFILE})
+				if (CPP)
+					list(APPEND ${CPPSOURCES} ${SOURCEFILE})
+				endif (CPP)
 
-file(GLOB SOURCE_FILES RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} "src/*.cpp")
+				# Look for C files.
+				string(REGEX MATCH "\\.c$" C ${SOURCEFILE})
+				if (C)
+					list(APPEND ${CPPSOURCES} ${SOURCEFILE})
+				endif (C)
+			endif (IS_DIRECTORY "${SOURCEFILE}")
+		endforeach(SOURCEFILE ${SRC_FLDR})
+	endif(NOT ${SRC} STREQUAL ${CMAKE_CURRENT_SOURCE_DIR} AND EXISTS "${SRC}/CMakeLists.txt")
+endmacro(GetSources)
+
+GetSources("${CMAKE_CURRENT_SOURCE_DIR}/src" SOURCE_FILES)
 list(SORT SOURCE_FILES)
 
 # Find clang (if the system has it)
@@ -70,6 +100,8 @@ endif (NOT NO_CLANG)
 project(BottyMcBotFace CXX)
 enable_language(C)
 
+message(STATUS "${PROJECT_NAME} version: ${VERSION_FULL}")
+
 include (CheckCXXCompilerFlag)
 
 # Make sure the compiler accepts C11
@@ -77,13 +109,12 @@ include (CheckCXXCompilerFlag)
 check_cxx_compiler_flag(-std=c++1z HAVE_CXX1Z_FLAG)
 set(CFLAGS "${CFLAGS} -g -Werror=implicit-function-declaration -Wall -Wextra -Wno-unused-parameter")
 
-if (CLANG_LIBCPP)
-    # Find Libc++ and set appropriate variables
-    #find_package(LIBCXX REQUIRED)
-    #include_directories(${LIBCXX_INCLUDE_DIR})
-    #target_link_libraries(${LIBCXX_LIBRARY})
-    #set(CFLAGS "${CFLAGS} ${LIBCXX_OPTIONS}")
-endif (CLANG_LIBCPP)
+if (NOT NO_CLANG)
+	# Because of C++17 being somewhat incomplete for clang/g++ we
+	# have to make clang use libc++ instead of glibc++
+	find_library(LIBCPP libc++ REQUIRED)
+	set(CFLAGS "${CFLAGS} -stdlib=libc++")
+endif (NOT NO_CLANG)
 
 if (NOT HAVE_CXX1Z_FLAG)
 	message(FATAL_ERROR "Your compiler (${CMAKE_C_COMPILER}) MUST support C++17. Try using CXX=<alternative compiler>")
@@ -102,6 +133,7 @@ include (CheckIncludeFile)
 include (CheckLibraryExists)
 include (CheckFunctionExists)
 include (CheckCXXSourceCompiles)
+include (ExternalProject)
 
 check_type_size(int8_t HAVE_INT8_T)
 check_type_size(uint8_t HAVE_UINT8_T)
@@ -183,21 +215,40 @@ check_cxx_source_compiles(
   }"
   HAS_CXXABI_H)
 
-# Find the path for json.hpp. Arch linux stores it in /usr/include/nlohmann/json.hpp
-# but Fedora stores it in /usr/include/json.hpp.
-#find_path(JSON_INCLUDE json.hpp)
-#if (NOT JSON_INCLUDE)
-#    find_path(JSON_INCLUDE2 nlohmann/json.hpp)
-#    if (NOT JSON_INCLUDE2)
-#        message(FATAL_ERROR "Cannot find nlohmann's json.hpp. Please install it from here: https://github.com/nlohmann/json")
-#    else (NOT JSON_INCLUDE2)
-#        message(STATUS "Found Niels Lohmann's JSON: nlohmann/json.hpp")
-#        set(JSON_INCLUDE nlohmann/json.hpp)
-#    endif (NOT JSON_INCLUDE2)
-#else (NOT JSON_INCLUDE)
-#    message(STATUS "Found Niels Lohmann's JSON: json.hpp")
-#    set(JSON_INCLUDE json.hpp)
-#endif (NOT JSON_INCLUDE)
+message(STATUS "Downloading nlohmann's json.hpp library...")
+file(DOWNLOAD https://raw.githubusercontent.com/nlohmann/json/develop/src/json.hpp ${CMAKE_BINARY_DIR}/external/json/json.hpp SHOW_PROGRESS)
+include_directories(${CMAKE_BINARY_DIR}/external/json/)
+
+# https://stackoverflow.com/questions/33036333/docopt-linker-error-for-example-program
+set(DOCOPT_ROOT ${CMAKE_BINARY_DIR}/external/docopt)
+set(DOCOPT_INCLUDE_DIRS ${DOCOPT_ROOT}/include/docopt)
+set(DOCOPT_LIBRARIES ${DOCOPT_ROOT}/libdocopt.a)
+set(docopt_INSTALL_DIR "${DOCOPT_ROOT}")
+set(docopt_CMAKE_ARGS -DCMAKE_C_COMPILER=${CMAKE_C_COMPILER} -DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER} -DCMAKE_INSTALL_PREFIX=${docopt_INSTALL_DIR})
+set(docopt_CXX_FLAGS -std=c++1z)
+if (NOT NO_CLANG)
+	set (docopt_CXX_FLAGS -stdlib=libc++)
+endif (NOT NO_CLANG)
+set(docopt_CMAKE_ARGS ${docopt_CMAKE_ARGS} -DCMAKE_CXX_FLAGS=${docopt_CXX_FLAGS})
+
+ExternalProject_Add(docopt
+  PREFIX ${DOCOPT_ROOT}
+  GIT_REPOSITORY https://github.com/docopt/docopt.cpp.git
+  BINARY_DIR ${DOCOPT_ROOT}
+  INSTALL_DIR ${DOCOPT_ROOT}
+  CMAKE_ARGS ${docopt_CMAKE_ARGS}
+  LOG_DOWNLOAD ON
+  LOG_CONFIGURE ON
+  LOG_BUILD ON
+  LOG_INSTALL ON
+)
+add_library(libdocopt STATIC IMPORTED)
+set_target_properties(libdocopt PROPERTIES IMPORTED_LOCATION ${DOCOPT_LIBRARIES})
+add_dependencies(libdocopt docopt)
+
+include_directories(${PROJECT_SOURCE_DIR})
+include_directories(${DOCOPT_INCLUDE_DIRS})
+
 
 #find_package(FLEX REQUIRED)
 #find_package(BISON REQUIRED)
@@ -215,8 +266,10 @@ check_cxx_source_compiles(
 # Make sure if the platform we're on requires libdl that we use it.
 find_library(LIBDL dl)
 find_library(LIBPTHREAD pthread)
-find_library(CLANG_CXXABI c++abi)
-#find_library(DOCOPT docopt)
+#find_library(CLANG_CXXABI c++abi)
+find_package(OpenSSL REQUIRED)
+
+message(STATUS "Found OpenSSL ${OPENSSL_VERSION}")
 
 # Add our include directories
 include_directories(${CMAKE_SOURCE_DIR}/include ${MYSQL_INCLUDE_DIR} ${FastCGI_INCLUDE_DIR})
@@ -253,21 +306,5 @@ endif (LIBDL)
 if (LIBPTHREAD)
 	target_link_libraries(${PROJECT_NAME} ${LIBPTHREAD})
 endif (LIBPTHREAD)
-#if(CLANG_CXXABI)
-#    target_link_libraries(${PROJECT_NAME} ${CLANG_CXXABI})
-#endif(CLANG_CXXABI)
 
-#if (NOT DOCOPT)
-#	message(FATAL_ERROR "docopt.cpp required to compile, you can find it at https://github.com/docopt/docopt.cpp")
-#endif (NOT DOCOPT)
-
-#target_link_libraries(${PROJECT_NAME} ${MYSQL_LIBRARIES} ${FastCGI_LIBRARIES} ${DOCOPT})
-# add_dependencies(${PROJECT_NAME} license_headers)
-
-#add_subdirectory(passwd)
-#add_subdirectory(modules)
-
-# Do the make install
-#install(TARGETS ${PROJECT_NAME} RUNTIME DESTINATION bin)
-#install(FILES ${CMAKE_SOURCE_DIR}/doc/nbstftp.conf.example DESTINATION etc RENAME nbstftp.conf)
-# install(FILES ${MAN_FILE} DESTINATION man)
+target_link_libraries(${PROJECT_NAME} ${OPENSSL_LIBRARIES} libdocopt)

@@ -1,6 +1,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include "SocketMultiplexer.h"
+#include "json.hpp"
 
 // Global var, include SocketMultiplexer.h to access it
 SocketMultiplexer *mplexer;
@@ -8,7 +9,7 @@ SocketMultiplexer *mplexer;
 int main(int argc, char **argv)
 {
 	tfm::printf("Hello! :D\n");
-	
+
 	SocketMultiplexer m;
 	mplexer = &m;
 

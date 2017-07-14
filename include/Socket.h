@@ -105,6 +105,12 @@ public:
 	virtual void OnError(const std::string &str);
 };
 
+class SecureBufferedSocket : public virtual ConnectionSocket
+{
+public:
+	
+};
+
 class ClientSocket;
 
 class ListeningSocket : public virtual Socket
