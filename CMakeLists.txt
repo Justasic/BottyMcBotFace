@@ -215,8 +215,10 @@ check_cxx_source_compiles(
   }"
   HAS_CXXABI_H)
 
-message(STATUS "Downloading nlohmann's json.hpp library...")
-file(DOWNLOAD https://raw.githubusercontent.com/nlohmann/json/develop/src/json.hpp ${CMAKE_BINARY_DIR}/external/json/json.hpp SHOW_PROGRESS)
+if (NOT EXISTS ${CMAKE_BINARY_DIR}/external/json/json.hpp)
+    message(STATUS "Downloading nlohmann's json.hpp library...")
+    file(DOWNLOAD https://raw.githubusercontent.com/nlohmann/json/develop/src/json.hpp ${CMAKE_BINARY_DIR}/external/json/json.hpp SHOW_PROGRESS)
+endif (NOT EXISTS ${CMAKE_BINARY_DIR}/external/json/json.hpp)
 include_directories(${CMAKE_BINARY_DIR}/external/json/)
 
 # https://stackoverflow.com/questions/33036333/docopt-linker-error-for-example-program
