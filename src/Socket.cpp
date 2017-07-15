@@ -256,6 +256,63 @@ void ConnectionSocket::Connect(const std::string &conaddr, short port)
 	}
 }
 
+SecureBufferedSocket::SecureBufferedSocket(bool isipv6) : Socket(-1, isipv6), ConnectionSocket(isipv6)
+{
+    OpenSSL_add_all_algorithms();
+    SSL_load_error_strings();
+    const SSL_METHOD *method = SSLv23_client_method();
+    this->ctx = SSL_CTX_new(method);
+    if (ctx == nullptr)
+    {
+        // TODO: Get reason info
+        throw SocketException("SSL Error #1");
+    }
+}
+
+SecureBufferedSocket::~SecureBufferedSocket()
+{
+    SSL_free(this->ssl);
+    SSL_CTX_free(this->ctx);
+}
+
+void SecureBufferedSocket::OnConnect()
+{
+    this->ssl = SSL_new(this->ctx);
+
+    SSL_set_fd(this->ssl, this->GetFD());
+
+    if (SSL_connect(ssl) < 0)
+    {
+        // TODO: get reason info
+        throw SocketException("SSL Error #2");
+    }
+
+    this->OnSSLConnect();
+}
+
+void SecureBufferedSocket::Write(const std::string &str)
+{
+    this->buffer += str;
+    mplexer->SetSocketStatus(this, this->status | MX_WRITABLE);
+}
+
+size_t SecureBufferedSocket::Write(const void *data, size_t len)
+{
+    return SSL_write(this->ssl, data, len);
+}
+
+size_t SecureBufferedSocket::Read(void *data, size_t len)
+{
+    return SSL_read(this->ssl, data, len);
+}
+
+bool SecureBufferedSocket::MultiplexWrite()
+{
+    this->Write(reinterpret_cast<const void*>(this->buffer.c_str()), this->buffer.size());
+    mplexer->SetSocketStatus(this, this->status & ~MX_WRITABLE);
+    return true;
+}
+
 
 ListeningSocket::ListeningSocket(const std::string &bindaddr, short port, bool ipv6) : Socket(-1, ipv6)
 {

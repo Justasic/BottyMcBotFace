@@ -28,6 +28,9 @@
  */
 #pragma once
 #include <arpa/inet.h>
+// For SSL
+#include <openssl/ssl.h>
+#include <openssl/err.h>
 #include "Exceptions.h"
 
 typedef uint32_t flags_t;
@@ -99,7 +102,7 @@ public:
 	bool MultiplexEvent();
 	void MultiplexError();
 
-	void Connect(const std::string &address, short port);
+	virtual void Connect(const std::string &address, short port);
 
 	virtual void OnConnect() = 0;
 	virtual void OnError(const std::string &str);
@@ -107,8 +110,34 @@ public:
 
 class SecureBufferedSocket : public virtual ConnectionSocket
 {
+    SSL_CTX *ctx;
+    SSL *ssl;
+
+    // The buffer.
+    std::string buffer;
 public:
-	
+	SecureBufferedSocket(bool isipv6 = false);
+    ~SecureBufferedSocket();
+
+    // Useful :p
+    template<typename... Args> void Write(const std::string &str, const Args&... args)
+    {
+        this->Write(tfm::format(str, args...));
+    }
+
+    // Because OpenSSL requires we use their custom functions.
+    virtual void Write(const std::string &);
+    virtual size_t Write(const void *data, size_t len) override;
+    virtual size_t Read(void *data, size_t len) override;
+
+    // Override this so when the connection is successful we can start SSL.
+    void OnConnect() override;
+
+    // As a result of above, we must make an OnSSLConnect
+    virtual void OnSSLConnect() = 0;
+
+    // Since this is a managed socket, we handle the multiplexer ourselves.
+    bool MultiplexWrite() override;
 };
 
 class ClientSocket;
