@@ -20,6 +20,9 @@ class kstring
         kstring(const char *);
         ~kstring();
 
+        // a timing-safe compaison of strings (used for passwords)
+        bool securecmp(const kstring &);
+
         //Assignment Operators
         kstring & operator= (const kstring &);
         kstring & operator= (const char *);
@@ -60,9 +63,13 @@ class kstring
 
         //READ ONLY for the subscript
         char & operator [] (int);
+		const char & operator [] (int) const;
+
+        // Getters/Setters
+        inline size_t size() const { return this->len; }
 
     private:
         char * str;
         //Length of the string, NOT including NULL at the end.
-        int len;
+        size_t len;
 };

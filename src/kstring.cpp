@@ -5,9 +5,10 @@
 //will preform deep copies and comparisons, it WILL NOT just check addresses.
 
 #include "kstring.h"
+#include "ManagedBuffer.h"
 
 //Default constructor
-kstring::kstring():str(NULL), len(0)
+kstring::kstring() : str(NULL), len(0)
 {
 };
 
@@ -30,10 +31,24 @@ kstring::kstring(const char* copy_from)
 //Deconstructor
 kstring::~kstring()
 {
-    delete []str;
+    delete [] str;
     str = NULL;
     len = 0;
 };
+
+bool kstring::securecmp(const kstring &otherstr)
+{
+    size_t tmax = otherstr.size() - 1;
+    int ret = 0;
+
+    for (size_t n = 0; n < this->len; ++n)
+    {
+		// FIXME: don't call the operator.
+        ret |= (this->operator[](n) ^ (n <= tmax ? otherstr[n] : otherstr[tmax]));
+    }
+
+    return !ret;
+}
 
 kstring & kstring::operator= (const kstring & op2)
 {
@@ -86,13 +101,22 @@ std::ostream & operator<< (std::ostream &op1, const kstring& op2)
 std::istream & operator>> (std::istream &op1, kstring& op2)
 {
     //To match with Discord's Char Limit
-    char temp[2000];
-    op1 >>temp;
-    op2.len = std::strlen(temp);
+	ManagedBuffer mb;
+
+	while (!op1.eof())
+	{
+		char ch = op1.get();
+		mb.Write(reinterpret_cast<const void*>(&ch), sizeof(std::istream::int_type));
+	}
+
+//    char temp[1024]; // 1K buffeer
+//    op1 >>temp;
+//    op2.len = std::strlen(temp);
     if(op2.str)
         delete []op2.str;
     op2.str = new char [op2.len +1];
-    std::strcpy(op2.str, temp);
+//    std::strncpy(op2.str, temp);
+	memcpy(reinterpret_cast<void*>(op2.str), *mb, mb.size());
 
     return op1;
 };
@@ -212,3 +236,8 @@ char & kstring::operator [] (int index)
 {
     return str[index];
 };
+
+const char & kstring::operator [] (int index) const
+{
+	return str[index];
+}
