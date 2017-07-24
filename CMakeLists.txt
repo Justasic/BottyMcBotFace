@@ -215,11 +215,37 @@ check_cxx_source_compiles(
   }"
   HAS_CXXABI_H)
 
+# Download JSON.hpp
 if (NOT EXISTS ${CMAKE_BINARY_DIR}/external/json/json.hpp)
     message(STATUS "Downloading nlohmann's json.hpp library...")
     file(DOWNLOAD https://raw.githubusercontent.com/nlohmann/json/develop/src/json.hpp ${CMAKE_BINARY_DIR}/external/json/json.hpp SHOW_PROGRESS)
 endif (NOT EXISTS ${CMAKE_BINARY_DIR}/external/json/json.hpp)
-include_directories(${CMAKE_BINARY_DIR}/external/json/)
+include_directories(${CMAKE_BINARY_DIR}/external/json/ ${CMAKE_BINARY_DIR}/external/catch)
+
+set(CATCH_ROOT ${CMAKE_BINARY_DIR}/external/catch)
+set(CATCH_INSTALL_DIR "${CATCH_ROOT}")
+set(CATCH_CMAKE_ARGS -DCMAKE_C_COMPILER=${CMAKE_C_COMPILER} -DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER} -DCMAKE_INSTALL_PREFIX=${CATCH_INSTALL_DIR})
+set(CATCH_CXX_ARGS -std=c++1z)
+if (NOT NO_CLANG)
+    set (CATCH_CXX_ARGS ${CATCH_CXX_ARGS} -stdlib=libc++)
+endif (NOT NO_CLANG)
+set(CATCH_CMAKE_ARGS ${CATCH_CMAKE_ARGS} -DCMAKE_CXX_FLAGS=${CATCH_CXX_ARGS})
+
+ExternalProject_Add(catch
+    GIT_REPOSITORY https://github.com/philsquared/Catch
+    PREFIX ${CATCH_ROOT}
+    BINARY_DIR ${CATCH_ROOT}
+    INSTALL_DIR ${CATCH_ROOT}
+    CMAKE_ARGS ${CATCH_CMAKE_ARGS}
+    LOG_DOWNLOAD ON
+    LOG_CONFIGURE ON
+    LOG_BUILD ON
+    LOG_INSTALL ON
+)
+
+add_library(Catch INTERFACE)
+add_dependencies(Catch catch)
+target_include_directories(Catch INTERFACE ${CATCH_ROOT}/include)
 
 # https://stackoverflow.com/questions/33036333/docopt-linker-error-for-example-program
 set(DOCOPT_ROOT ${CMAKE_BINARY_DIR}/external/docopt)
@@ -229,7 +255,7 @@ set(docopt_INSTALL_DIR "${DOCOPT_ROOT}")
 set(docopt_CMAKE_ARGS -DCMAKE_C_COMPILER=${CMAKE_C_COMPILER} -DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER} -DCMAKE_INSTALL_PREFIX=${docopt_INSTALL_DIR})
 set(docopt_CXX_FLAGS -std=c++1z)
 if (NOT NO_CLANG)
-	set (docopt_CXX_FLAGS -stdlib=libc++)
+    set (docopt_CXX_FLAGS ${docopt_CXX_FLAGS} -stdlib=libc++)
 endif (NOT NO_CLANG)
 set(docopt_CMAKE_ARGS ${docopt_CMAKE_ARGS} -DCMAKE_CXX_FLAGS=${docopt_CXX_FLAGS})
 
