@@ -2,7 +2,7 @@
  * BSD 2-Clause License
  *
  * Copyright (c) 2017, Justin Crawford
- * Copyright (c) 2017, Billy Haugen
+ * Copyright (c) 2017, William Haugen
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without

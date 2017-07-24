@@ -222,31 +222,6 @@ if (NOT EXISTS ${CMAKE_BINARY_DIR}/external/json/json.hpp)
 endif (NOT EXISTS ${CMAKE_BINARY_DIR}/external/json/json.hpp)
 include_directories(${CMAKE_BINARY_DIR}/external/json/ ${CMAKE_BINARY_DIR}/external/catch)
 
-set(CATCH_ROOT ${CMAKE_BINARY_DIR}/external/catch)
-set(CATCH_INSTALL_DIR "${CATCH_ROOT}")
-set(CATCH_CMAKE_ARGS -DCMAKE_C_COMPILER=${CMAKE_C_COMPILER} -DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER} -DCMAKE_INSTALL_PREFIX=${CATCH_INSTALL_DIR})
-set(CATCH_CXX_ARGS -std=c++1z)
-if (NOT NO_CLANG)
-    set (CATCH_CXX_ARGS ${CATCH_CXX_ARGS} -stdlib=libc++)
-endif (NOT NO_CLANG)
-set(CATCH_CMAKE_ARGS ${CATCH_CMAKE_ARGS} -DCMAKE_CXX_FLAGS=${CATCH_CXX_ARGS})
-
-ExternalProject_Add(catch
-    GIT_REPOSITORY https://github.com/philsquared/Catch
-    PREFIX ${CATCH_ROOT}
-    BINARY_DIR ${CATCH_ROOT}
-    INSTALL_DIR ${CATCH_ROOT}
-    CMAKE_ARGS ${CATCH_CMAKE_ARGS}
-    LOG_DOWNLOAD ON
-    LOG_CONFIGURE ON
-    LOG_BUILD ON
-    LOG_INSTALL ON
-)
-
-add_library(Catch INTERFACE)
-add_dependencies(Catch catch)
-target_include_directories(Catch INTERFACE ${CATCH_ROOT}/include)
-
 # https://stackoverflow.com/questions/33036333/docopt-linker-error-for-example-program
 set(DOCOPT_ROOT ${CMAKE_BINARY_DIR}/external/docopt)
 set(DOCOPT_INCLUDE_DIRS ${DOCOPT_ROOT}/include/docopt)
@@ -265,17 +240,16 @@ ExternalProject_Add(docopt
   BINARY_DIR ${DOCOPT_ROOT}
   INSTALL_DIR ${DOCOPT_ROOT}
   CMAKE_ARGS ${docopt_CMAKE_ARGS}
-  LOG_DOWNLOAD ON
+  #LOG_DOWNLOAD ON
   LOG_CONFIGURE ON
   LOG_BUILD ON
-  LOG_INSTALL ON
+  #LOG_INSTALL ON
 )
 add_library(libdocopt STATIC IMPORTED)
 set_target_properties(libdocopt PROPERTIES IMPORTED_LOCATION ${DOCOPT_LIBRARIES})
 add_dependencies(libdocopt docopt)
 
-include_directories(${PROJECT_SOURCE_DIR})
-include_directories(${DOCOPT_INCLUDE_DIRS})
+include_directories(${PROJECT_SOURCE_DIR} ${DOCOPT_INCLUDE_DIRS})
 
 
 #find_package(FLEX REQUIRED)
@@ -321,6 +295,9 @@ include_directories(${CMAKE_BINARY_DIR})
 #     ${OUTPUT_FILE})
 
 #find_program(GZIP gzip)
+enable_testing()
+
+add_subdirectory(tests)
 
 # Finally, tell CMake how to build the project
 add_executable(${PROJECT_NAME} ${SOURCE_FILES} ${FLEX_LEXER_OUTPUTS} ${BISON_PARSER_OUTPUTS})
