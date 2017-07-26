@@ -125,6 +125,17 @@ TEST_CASE("kstring accepts char*", "[kstring]")
 		REQUIRE(string != nulled);
 	}
 
+	SECTION("test if string is null")
+	{
+		kstring test;
+
+		REQUIRE(test.isnull());
+		// String is technically no longer null but instead
+		// considered "empty"
+		test = '\0';
+		REQUIRE(!test.isnull());
+	}
+
 }
 
 TEST_CASE("kstring can accept std::string", "[kstring]")

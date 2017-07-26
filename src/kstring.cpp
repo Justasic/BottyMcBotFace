@@ -51,6 +51,15 @@ kstring::kstring() : str(nullptr), len(0)
 {
 };
 
+kstring::kstring(const char *copy_from, size_t len) : str(nullptr), len(len)
+{
+    if (!copy_from)
+        return;
+
+    this->str = new char[this->len + 1];
+    memcpy(this->str, copy_from, this->len);
+}
+
 //Copy constructor for a kstring.
 kstring::kstring(const kstring &copy_from) : str(nullptr), len(0)
 {
@@ -91,6 +100,16 @@ kstring::~kstring()
     len = 0;
 };
 
+size_t kstring::find(const kstring&, size_t) const
+{
+    return kstring::npos;
+}
+
+kstring kstring::substr(size_t, size_t) const
+{
+    return *this;
+}
+
 bool kstring::securecmp(const kstring &otherstr)
 {
     size_t tmax = otherstr.size() - 1;
@@ -103,6 +122,38 @@ bool kstring::securecmp(const kstring &otherstr)
     }
 
     return !ret;
+}
+
+kvector kstring::expand(const kstring &delim) const
+{
+    size_t start = 0, end = 0;
+    kvector ret;
+
+    while (end != kstring::npos)
+    {
+        end = this->find(delim, start);
+
+        // If at end, use length=maxLength.  Else use length=end-start.
+        ret.push_back(this->substr(start, (end == kstring::npos) ? kstring::npos : end - start));
+
+        // If at end, use start=maxSize.  Else use start=end+delimiter.
+        start = ((end > (kstring::npos - delim.size())) ? kstring::npos : end + delim.size());
+    }
+
+    return ret;
+}
+
+kstring kstring::contract(const kvector &_vec, const kstring &delim)
+{
+    for (auto it = _vec.begin(), it_end = _vec.end(); it != it_end; ++it)
+    {
+        if (it + 1 == it_end)
+            *this += *it;
+        else
+            *this += (*it) + delim;
+    }
+
+    return *this;
 }
 
 kstring & kstring::operator= (const kstring & op2)
@@ -154,6 +205,15 @@ kstring & kstring::operator= (const char * op2)
 
     return *this;
 };
+
+kstring & kstring::operator= (const char ch)
+{
+    this->str = new char[2];
+    this->len = 1;
+    str[0] = ch;
+    str[1] = '\0';
+    return *this;
+}
 
 kstring & kstring::operator+= (const kstring s2)
 {

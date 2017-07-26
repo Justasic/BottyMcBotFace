@@ -38,6 +38,9 @@
 #include <iostream>
 #include <map>
 #include <strings.h>
+#include <vector>
+#include "tinyformat.h"
+
 
 //TO DO:
 //Length to spit out len
@@ -45,21 +48,54 @@
 class kstring
 {
     public:
+        // Define npos.
+        static const size_t npos = -1;
+
+        // Standard constructors
         kstring();
         kstring(const kstring &);
+        kstring(const char *, size_t);
         kstring(const char *);
+        kstring(const char);
         kstring(const std::string &str);
+
+        // Numerical conversions
+        explicit kstring(int i);
+        explicit kstring(long int i);
+        explicit kstring(long long int i);
+        explicit kstring(unsigned int i);
+        explicit kstring(unsigned long int i);
+        explicit kstring(unsigned long long int i);
+        explicit kstring(float i);
+        explicit kstring(double i);
+        explicit kstring(long double i);
+
+        // Destructor
         ~kstring();
+
+        // Standard functions.
+        size_t find(const kstring &, size_t) const;
+        kstring substr(size_t = 0, size_t = npos) const;
 
         // a timing-safe compaison of strings (used for passwords)
         bool securecmp(const kstring &);
+
+        // Vector functions (useful for tokenization)
+        std::vector<kstring> expand(const kstring &delim) const;
+        kstring contract(const std::vector<kstring> &_vec, const kstring &delim);
+
+        // Make use of tinyformat here.
+        template<typename... Args>
+        kstring fmt(const Args&... args) { return tfm::format(this->c_str(), args...); }
 
         //Assignment Operators
         kstring & operator= (const kstring &);
         kstring & operator= (const std::string &);
         kstring & operator= (const char *);
+        kstring & operator= (const char);
         kstring & operator+= (const std::string &);
         kstring & operator+= (const char *);
+        kstring & operator+= (const char);
         kstring & operator+= (const kstring s2);
 
         //Able to use std::ostream and std::istream natively
@@ -106,22 +142,22 @@ class kstring
         // Getters/Setters
         inline size_t size() const { return this->len; }
         inline const char *c_str() const { return this->str; }
-        bool isnull() const;
+        inline bool isnull() const { return !this->str; }
         inline bool empty() const { return !this->len; }
+        inline void clear() { bzero(this->str, this->len); this->len = 0; }
 
         // Casting operators
-        inline explicit operator int() { return static_cast<int>(strtol(this->str, nullptr, 10)); }
-        inline explicit operator long int() { return strtol(this->str, nullptr, 10); }
-        inline explicit operator long long int() { return strtoll(this->str, nullptr, 10); }
+        inline explicit operator int()                    { return static_cast<int>(strtol(this->str, nullptr, 10)); }
+        inline explicit operator long int()               { return strtol(this->str, nullptr, 10); }
+        inline explicit operator long long int()          { return strtoll(this->str, nullptr, 10); }
         // C/C++ does not have a strtou function cuz apparently being consistent isn't top
         // priority for ISOCPP group. So we have to do a truncating cast from unsigned long.
-        inline explicit operator unsigned int() { return static_cast<unsigned int>(strtoul(this->str, nullptr, 10)); }
-        inline explicit operator unsigned long int() { return strtoul(this->str, nullptr, 10); }
+        inline explicit operator unsigned int()           { return static_cast<unsigned int>(strtoul(this->str, nullptr, 10)); }
+        inline explicit operator unsigned long int()      { return strtoul(this->str, nullptr, 10); }
         inline explicit operator unsigned long long int() { return strtoull(this->str, nullptr, 10); }
-
-        inline explicit operator float() { return strtof(this->str, nullptr); }
-        inline explicit operator double() { return strtod(this->str, nullptr); }
-        inline explicit operator long double() { return strtold(this->str, nullptr); }
+        inline explicit operator float()                  { return strtof(this->str, nullptr); }
+        inline explicit operator double()                 { return strtod(this->str, nullptr); }
+        inline explicit operator long double()            { return strtold(this->str, nullptr); }
 
 
     private:
@@ -130,9 +166,15 @@ class kstring
         size_t len;
 };
 
+// Useful :p
+typedef std::vector<kstring> kvector;
+
+// user-defined literal
+inline kstring operator "" _k(const char *str, size_t len) { return kstring(str, len); }
+
 // A case-insensitive map
 struct insensitive
 {
     inline bool operator()(const kstring &a, const kstring &b) const { return !strcasecmp(a.c_str(), b.c_str()); }
 };
-template<typename T> class insensitive_map : public std::map<kstring, T, insensitive> { };
+template<typename T> class kmap : public std::map<kstring, T, insensitive> { };
