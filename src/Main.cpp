@@ -30,14 +30,29 @@
 #include <cstdlib>
 #include "SocketMultiplexer.h"
 #include "json.hpp"
+#include "ThreadEngine.h"
+#include "TimerReactor.h"
 
 // Global var, include SocketMultiplexer.h to access it
 SocketMultiplexer *mplexer;
+ThreadHandler *thread;
+TimerReactor *reactor;
 
 int main(int argc, char **argv)
 {
 	tfm::printf("Hello! :D\n");
 
+    // Initialize the thread engine first.
+    ThreadHandler engine;
+    engine.Initialize();
+    thread = &engine;
+
+    // Now that our thread engine is up, initialize
+    // the timer reactor.
+    TimerReactor tr;
+    reactor = &tr;
+
+    // Now initialize the socket engine.
 	SocketMultiplexer m;
 	mplexer = &m;
 
