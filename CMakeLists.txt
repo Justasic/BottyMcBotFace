@@ -15,76 +15,19 @@ set(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake)
 # include our function checks
 include(systemfuncs)
 
-# Get the git revision location for the branch we're on
-if(EXISTS "${CMAKE_SOURCE_DIR}/.git/HEAD")
-        file(READ ${CMAKE_SOURCE_DIR}/.git/HEAD GIT_HEAD_LOC)
-        string(LENGTH ${GIT_HEAD_LOC} HEAD_LEN)
-        math(EXPR LEN "${HEAD_LEN} - 5")
-        string(SUBSTRING ${GIT_HEAD_LOC} 5 ${LEN} GIT_HEAD)
-        # Weird nastery to remove newlines which screw up the if statement below.
-        set(GIT_SHA_PATH "${CMAKE_SOURCE_DIR}/.git/${GIT_HEAD}")
-        string(REGEX REPLACE "(\r?\n)+$" "" GIT_SHA_PATH "${GIT_SHA_PATH}")
-endif(EXISTS "${CMAKE_SOURCE_DIR}/.git/HEAD")
-
-# Get the git revision we're on for the version string
-if(EXISTS "${GIT_SHA_PATH}")
-        file(READ "${GIT_SHA_PATH}" VERSION_STR)
-        string(REGEX REPLACE "(\r?\n)+$" "" VERSION_STR "${VERSION_STR}")
-        # Get the length of the string
-        string(LENGTH ${VERSION_STR} VERSION_LEN)
-        # Subtract 7 from the string's length
-        math(EXPR VERSION_NUM_LEN "${VERSION_LEN} - ${VERSION_LEN} + 7")
-        # Extract the value from the string
-        string(SUBSTRING ${VERSION_STR} 0 ${VERSION_NUM_LEN} VERSION_GIT)
-endif(EXISTS "${GIT_SHA_PATH}")
-
 # Set our version strings
+GetGitRevision()
 SET(VERSION_SIMPLE "${PROJECT_MAJOR_VERSION}.${PROJECT_MINOR_VERSION}.${PROJECT_PATCH_LEVEL}")
-SET(VERSION_FULL "${PROJECT_MAJOR_VERSION}.${PROJECT_MINOR_VERSION}.${PROJECT_PATCH_LEVEL}-${VERSION_GIT}")
+SET(VERSION_FULL "${PROJECT_MAJOR_VERSION}.${PROJECT_MINOR_VERSION}.${PROJECT_PATCH_LEVEL}-${GIT_REVISION_SHORT}")
 
-# A macro to recursively get source files, however if the source folder has
-# a CMakeLists.txt file, include it as part of the build instead.
-macro(GetSources SRC CPPSOURCES)
-	if(NOT ${SRC} STREQUAL ${CMAKE_CURRENT_SOURCE_DIR} AND EXISTS "${SRC}/CMakeLists.txt")
-		# If we have a CMakeLists.txt file, include it instead of trying to compile
-		# sources as part of main project.
-		add_subdirectory("${SRC}")
-	else(NOT ${SRC} STREQUAL ${CMAKE_CURRENT_SOURCE_DIR} AND EXISTS "${SRC}/CMakeLists.txt")
-		# get a list of all files in the directory.
-		file(GLOB SRC_FLDR "${SRC}/*")
-		foreach(SOURCEFILE ${SRC_FLDR})
-			# If it's a directory, recursively call this function.
-			if (IS_DIRECTORY "${SOURCEFILE}")
-				GetSources(${SOURCEFILE} ${CPPSOURCES})
-			else (IS_DIRECTORY "${SOURCEFILE}")
-				# Otherwise look for source files and append them.
-				# Look for C++ files.
-				string(REGEX MATCH "\\.cpp$" CPP ${SOURCEFILE})
-				if (CPP)
-					list(APPEND ${CPPSOURCES} ${SOURCEFILE})
-				endif (CPP)
-
-				# Look for C files.
-				string(REGEX MATCH "\\.c$" C ${SOURCEFILE})
-				if (C)
-					list(APPEND ${CPPSOURCES} ${SOURCEFILE})
-				endif (C)
-			endif (IS_DIRECTORY "${SOURCEFILE}")
-		endforeach(SOURCEFILE ${SRC_FLDR})
-	endif(NOT ${SRC} STREQUAL ${CMAKE_CURRENT_SOURCE_DIR} AND EXISTS "${SRC}/CMakeLists.txt")
-endmacro(GetSources)
-
-GetSources("${CMAKE_CURRENT_SOURCE_DIR}/src" SOURCE_FILES)
-list(SORT SOURCE_FILES)
-
-# Find clang (if the system has it)
+# Find clang (if the system has it) so we can default to it
+# (Clang has better C++ support)
 find_program(CLANG clang)
 find_program(CLANGXX clang++)
 
 # prefer clang instead of gcc (or whatever shit compiler they're using) This can be disabled with
 # the NO_CLANG option
 option(NO_CLANG "Don't prefer clang for compilation" OFF)
-option(CLANG_LIBCPP "Use of libc++ instead of glibc++" ON)
 if (NOT NO_CLANG)
 	if (CLANG)
 		set(CMAKE_C_COMPILER ${CLANG})
@@ -99,33 +42,7 @@ endif (NOT NO_CLANG)
 # Finally initialize our project
 project(BottyMcBotFace CXX)
 enable_language(C)
-
 message(STATUS "${PROJECT_NAME} version: ${VERSION_FULL}")
-
-include (CheckCXXCompilerFlag)
-
-# Make sure the compiler accepts C11
-#check_cxx_compiler_flag(-std=c++11 HAVE_C11_FLAG)
-check_cxx_compiler_flag(-std=c++1z HAVE_CXX1Z_FLAG)
-set(CFLAGS "${CFLAGS} -g -Werror=implicit-function-declaration -Wall -Wextra -Wno-unused-parameter")
-
-if (NOT NO_CLANG)
-	# Because of C++17 being somewhat incomplete for clang/g++ we
-	# have to make clang use libc++ instead of glibc++
-	find_library(LIBCPP libc++ REQUIRED)
-	set(CFLAGS "${CFLAGS} -stdlib=libc++")
-endif (NOT NO_CLANG)
-
-if (NOT HAVE_CXX1Z_FLAG)
-	message(FATAL_ERROR "Your compiler (${CMAKE_C_COMPILER}) MUST support C++17. Try using CXX=<alternative compiler>")
-else (NOT HAVE_CXX1Z_FLAG)
-	set(CFLAGS "${CFLAGS} -std=c++1z")
-endif (NOT HAVE_CXX1Z_FLAG)
-
-# Add some feature test macro definitions.
-add_definitions(-D_POSIX_SOURCE=1 -D_POSIX_C_SOURCE=200809L)
-
-set(CMAKE_CXX_FLAGS ${CFLAGS})
 
 # Check for platform-specific things we need
 include (CheckTypeSize)
@@ -134,6 +51,26 @@ include (CheckLibraryExists)
 include (CheckFunctionExists)
 include (CheckCXXSourceCompiles)
 include (ExternalProject)
+include (CheckCXXCompilerFlag)
+
+# Make sure the compiler accepts C11
+#check_cxx_compiler_flag(-std=c++11 HAVE_C11_FLAG)
+list(APPEND CFLAGS -g -Werror=implicit-function-declaration -Wall -Wextra -Wno-unused-parameter)
+
+if (NOT NO_CLANG)
+	# Because of C++17 being somewhat incomplete for clang/g++ we
+	# have to make clang use libc++ instead of glibc++
+	find_library(LIBCPP libc++ REQUIRED)
+    LIST(APPEND CFLAGS -stdlib=libc++)
+    LIST(APPEND LINKFLAGS -stdlib=libc++)
+endif (NOT NO_CLANG)
+
+# Add our compile definitions.
+# XXX: This is a global definition change!
+add_compile_options(${CFLAGS})
+
+# Add some feature test macro definitions.
+#add_definitions(-D_POSIX_SOURCE=1 -D_POSIX_C_SOURCE=200809L)
 
 check_type_size(int8_t HAVE_INT8_T)
 check_type_size(uint8_t HAVE_UINT8_T)
@@ -220,19 +157,15 @@ if (NOT EXISTS ${CMAKE_BINARY_DIR}/external/json/json.hpp)
     message(STATUS "Downloading nlohmann's json.hpp library...")
     file(DOWNLOAD https://raw.githubusercontent.com/nlohmann/json/develop/src/json.hpp ${CMAKE_BINARY_DIR}/external/json/json.hpp SHOW_PROGRESS)
 endif (NOT EXISTS ${CMAKE_BINARY_DIR}/external/json/json.hpp)
-include_directories(${CMAKE_BINARY_DIR}/external/json/ ${CMAKE_BINARY_DIR}/external/catch)
 
 # https://stackoverflow.com/questions/33036333/docopt-linker-error-for-example-program
 set(DOCOPT_ROOT ${CMAKE_BINARY_DIR}/external/docopt)
 set(DOCOPT_INCLUDE_DIRS ${DOCOPT_ROOT}/include/docopt)
-set(DOCOPT_LIBRARIES ${DOCOPT_ROOT}/libdocopt.a)
-set(docopt_INSTALL_DIR "${DOCOPT_ROOT}")
-set(docopt_CMAKE_ARGS -DCMAKE_C_COMPILER=${CMAKE_C_COMPILER} -DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER} -DCMAKE_INSTALL_PREFIX=${docopt_INSTALL_DIR})
 set(docopt_CXX_FLAGS -std=c++1z)
 if (NOT NO_CLANG)
     set (docopt_CXX_FLAGS ${docopt_CXX_FLAGS} -stdlib=libc++)
 endif (NOT NO_CLANG)
-set(docopt_CMAKE_ARGS ${docopt_CMAKE_ARGS} -DCMAKE_CXX_FLAGS=${docopt_CXX_FLAGS})
+set(docopt_CMAKE_ARGS -DCMAKE_C_COMPILER=${CMAKE_C_COMPILER} -DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER} -DCMAKE_INSTALL_PREFIX=${DOCOPT_ROOT} -DCMAKE_CXX_FLAGS=${docopt_CXX_FLAGS})
 
 ExternalProject_Add(docopt
   PREFIX ${DOCOPT_ROOT}
@@ -246,11 +179,12 @@ ExternalProject_Add(docopt
   #LOG_INSTALL ON
 )
 add_library(libdocopt STATIC IMPORTED)
-set_target_properties(libdocopt PROPERTIES IMPORTED_LOCATION ${DOCOPT_LIBRARIES})
+set_target_properties(libdocopt PROPERTIES IMPORTED_LOCATION ${DOCOPT_ROOT}/libdocopt.a)
 add_dependencies(libdocopt docopt)
 
-include_directories(${PROJECT_SOURCE_DIR} ${DOCOPT_INCLUDE_DIRS})
-
+# Get our source files
+GetSources("${CMAKE_CURRENT_SOURCE_DIR}/src" SOURCE_FILES)
+list(SORT SOURCE_FILES)
 
 #find_package(FLEX REQUIRED)
 #find_package(BISON REQUIRED)
@@ -267,49 +201,69 @@ include_directories(${PROJECT_SOURCE_DIR} ${DOCOPT_INCLUDE_DIRS})
 
 # Make sure if the platform we're on requires libdl that we use it.
 find_library(LIBDL dl)
-find_library(LIBPTHREAD pthread)
+set(THREADS_PREFER_PTHREAD_FLAG ON)
+find_package(Threads REQUIRED)
 #find_library(CLANG_CXXABI c++abi)
 find_package(OpenSSL REQUIRED)
 
-message(STATUS "Found OpenSSL ${OPENSSL_VERSION}")
-
 # Add our include directories
-include_directories(${CMAKE_SOURCE_DIR}/include ${MYSQL_INCLUDE_DIR} ${FastCGI_INCLUDE_DIR})
+include_directories(
+    ${CMAKE_BINARY_DIR}
+    ${CMAKE_SOURCE_DIR}/include
+    ${CMAKE_BINARY_DIR}/external/json/
+    ${CMAKE_BINARY_DIR}/external/catch
+    )
 
 # Configuration file and include the binary directory
 configure_file(${CMAKE_SOURCE_DIR}/cmake/sysconf.h.cmake ${CMAKE_BINARY_DIR}/sysconf.h)
-include_directories(${CMAKE_BINARY_DIR})
 
-# set(OUTPUT_FILE "${CMAKE_BINARY_DIR}/LICENSE.h")
-# find_program(XXD xxd REQUIRED)
-#
-# add_custom_command(
-#     OUTPUT ${OUTPUT_FILE}
-#     COMMAND ${XXD} -i LICENSE ${OUTPUT_FILE}
-#     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/doc/
-#     COMMENT "Generating binary license header")
-#
-# add_custom_target(
-#     license_headers
-#     ALL DEPENDS
-#     ${OUTPUT_FILE})
-
-#find_program(GZIP gzip)
 enable_testing()
-
 add_subdirectory(tests)
 
 # Finally, tell CMake how to build the project
 add_executable(${PROJECT_NAME} ${SOURCE_FILES} ${FLEX_LEXER_OUTPUTS} ${BISON_PARSER_OUTPUTS})
-#set_source_files_properties(${SOURCE_FILES} PROPERTIES LANGUAGE CXX COMPILE_FLAGS "${CFLAGS} -DPROJ_CORE")
-set_target_properties(${PROJECT_NAME} PROPERTIES LINKER_LANGUAGE CXX PREFIX "" SUFFIX "" LINK_FLAGS "${LINKFLAGS}")
-#set_property(TARGET ${PROJECT_NAME} PROPERTY CXX_STANDARD 14)
-#set_property(TARGET ${PROJECT_NAME} PROPERTY CXX_STANDARD_REQUIRED ON)
+set_target_properties(${PROJECT_NAME}
+    PROPERTIES LINKER_LANGUAGE CXX
+    PREFIX ""
+    SUFFIX ""
+    LINK_FLAGS "${LINKFLAGS} "
+    # We require C++17, make CMake figure out whether the system supports it.
+    CXX_STANDARD 17
+    CXX_STANDARD_REQUIRED YES
+    CXX_EXTENSIONS NO # Use -std=c++ instead of -std=gnu++
+)
+
+# We use pretty much all of C++11, a lot of C++14, and quite a bit of C++17
+# so try and require as much as we can so we can have C++17 support.
+target_compile_features(${PROJECT_NAME}
+    PRIVATE
+        cxx_thread_local
+        cxx_user_literals
+        cxx_variadic_macros
+        cxx_variadic_templates
+        cxx_rvalue_references
+        cxx_right_angle_brackets
+        cxx_range_for
+        cxx_noexcept
+        cxx_long_long_type
+        cxx_lambdas
+        cxx_deleted_functions
+        cxx_delegating_constructors
+        cxx_auto_type
+        cxx_decltype
+        cxx_constexpr
+    PUBLIC
+        cxx_nullptr
+)
+
+# Add include directories we only use for this target
+target_include_directories(${PROJECT_NAME}
+    PRIVATE
+        ${DOCOPT_INCLUDE_DIRS}
+)
+
 if (LIBDL)
 	target_link_libraries(${PROJECT_NAME} ${LIBDL})
 endif (LIBDL)
-if (LIBPTHREAD)
-	target_link_libraries(${PROJECT_NAME} ${LIBPTHREAD})
-endif (LIBPTHREAD)
 
-target_link_libraries(${PROJECT_NAME} ${OPENSSL_LIBRARIES} libdocopt)
+target_link_libraries(${PROJECT_NAME} ${OPENSSL_LIBRARIES} libdocopt Threads::Threads)

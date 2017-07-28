@@ -32,24 +32,14 @@
 #define VERSION_MINOR        @PROJECT_MINOR_VERSION@
 #define VERSION_PATCH        @PROJECT_PATCH_LEVEL@
 #define VERSION              "@VERSION_SIMPLE@"
-#define VERSION_GIT          "@VERSION_GIT@"
+#define VERSION_GIT          "@GIT_REVISION_SHORT@"
 #define VERSION_FULL         "@VERSION_FULL@"
-#define GIT_SHA_SUM          "@VERSION_STR@"
+#define GIT_SHA_SUM          "@GIT_REVISION_LONG@"
 #define COMPILED_NAME        "@PROJECT_NAME@"
 #define COMPILED_ARCH        "@CMAKE_ARCH@"
 #define C_COMPILER_NAME      "@CMAKE_C_COMPILER_ID@"
 #define CXX_COMPILER_NAME    "@CMAKE_CXX_COMPILER_ID@"
 #define CMAKE_INSTALL_PREFIX "@CMAKE_INSTALL_PREFIX@"
-
-#ifndef NDEBUG
-# define CFLAGS "@CMAKE_C_FLAGS@"
-# define CXXFLAGS "@CXXFLAGS@"
-# define LDFLAGS "@LDFLAGS@"
-#else
-# define CFLAGS ""
-# define CXXFLAGS ""
-# define LDFLAGS ""
-#endif
 
 #cmakedefine HAVE_UINT8_T 1
 #cmakedefine HAVE_U_INT8_T 1
