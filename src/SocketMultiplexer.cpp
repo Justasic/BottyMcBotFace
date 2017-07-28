@@ -32,6 +32,7 @@
 #include <unistd.h> // for close()
 #include <cstring> // for memset
 #include <sys/epoll.h> // obvious
+#include "Log.h"
 
 std::shared_mutex mux;
 /**
@@ -64,7 +65,7 @@ SocketMultiplexer::SocketMultiplexer()
 void SocketMultiplexer::Initialize()
 {
 	//Log(LOG_SOCKET) << "Using EPoll Multiplexing engine...";
-	tfm::printf("Using EPoll Multiplexing engine...\n");
+    "Using EPoll Multiplexing engine..."_l;
 	// well... it had to be greater than zero....
 	this->epollhandle = epoll_create(9001);
 
@@ -77,8 +78,7 @@ void SocketMultiplexer::Initialize()
 
 void SocketMultiplexer::Terminate()
 {
-	//Log(LOG_SOCKET) << "EPoll Multiplexer shutting down...";
-	tfm::printf("EPoll Multiplexer shutting down...\n");
+	"EPoll Multiplexer shutting down..."_l;
 	close(this->epollhandle);
 }
 
@@ -107,12 +107,11 @@ bool SocketMultiplexer::RemoveSocket(Socket *s)
 	memset(&ev, 0, sizeof(epoll_t));
 	ev.data.fd = s->GetFD();
 
-	auto it = std::find(this->Sockets.begin(), this->Sockets.end(), s);
-	if(it != this->Sockets.end())
+	if (auto it = std::find(this->Sockets.begin(), this->Sockets.end(), s); it != this->Sockets.end())
 			this->Sockets.erase(it);
 	else
 			//Log(LOG_WARN) << "Could not find " << s->GetFD() << " in known sockets!";
-			tfm::printf("Could not find %d in known sockets!\n", s->GetFD());
+            "Could not find %d in known sockets!"_l(s->GetFD());
 
 	if (epoll_ctl(this->epollhandle, EPOLL_CTL_DEL, ev.data.fd, &ev))
 		return false;
@@ -143,7 +142,7 @@ void SocketMultiplexer::Multiplex(time_t sleep)
 		mux.lock();
 		errno = 0;
 		//Log(LOG_VERBOSE, this->GetModule()) << "[Socket Engine] Entering EPoll Wait...";
-		tfm::printf("[Socket Engine] Entering EPoll Wait...\n");
+        "[Socket Engine] Entering EPoll Wait..."_l;
 		// Make sure we have room for epoll events.
 		if (this->Sockets.size() > Events.size())
 			Events.resize(this->Events.size() * 2);
@@ -156,7 +155,7 @@ void SocketMultiplexer::Multiplex(time_t sleep)
 			if (errno != EINTR)
 			{
 				//Log(LOG_WARN, this->GetModule()) << "[Socket Engine] EPollMultiplexer::Process() error: " << strerror(errno);
-				tfm::printf("[Socket Engine] EPollMultiplexer::Process() error: %s\n", strerror(errno));
+                "[Socket Engine] EPollMultiplexer::Process() error: %s"_l(strerror(errno));
 				::sleep(sleep); // prevents infinite loops my terminal has a hard time exiting from .
 			}
 		}
@@ -171,7 +170,7 @@ void SocketMultiplexer::Multiplex(time_t sleep)
 			if (!s)
 			{
 				//Log(LOG_VERBOSE, this->GetModule()) << "[Socket Engine] Unknown socket " << ev.data.fd << ", removing from EPoll and ignoring...";
-				tfm::printf("[Socket Engine] Unknown socket %d, removing from EPoll and ignoring...\n", ev.data.fd);
+                "[Socket Engine] Unknown socket %d, removing from EPoll and ignoring..."_l(ev.data.fd);
 				epoll_ctl(this->epollhandle, EPOLL_CTL_DEL, ev.data.fd, &ev);
 				mux.unlock();
 				continue;

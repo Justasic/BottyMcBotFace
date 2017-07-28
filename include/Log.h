@@ -26,45 +26,29 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#include <cstdio>
-#include <cstdlib>
-#include "SocketMultiplexer.h"
-#include "json.hpp"
-#include "ThreadEngine.h"
-#include "TimerReactor.h"
-#include "Log.h"
+#pragma once
+#include "kstring.h"
 
-// Global var, include SocketMultiplexer.h to access it
-SocketMultiplexer *mplexer;
-ThreadHandler *thread;
-TimerReactor *reactor;
-
-int main(int argc, char **argv)
+class Log
 {
-	"Hello World! :D"_l;
-
-    // Initialize the thread engine first.
-    ThreadHandler engine;
-    engine.Initialize();
-    thread = &engine;
-
-    // Now that our thread engine is up, initialize
-    // the timer reactor.
-    TimerReactor tr;
-    reactor = &tr;
-
-    // Now initialize the socket engine.
-	SocketMultiplexer m;
-	mplexer = &m;
-
-	mplexer->Initialize();
-
-	while (true)
+	// Our message to print.
+	kstring message;
+	// Local lock for thread safety.
+	std::mutex mtex;
+public:
+	// Defined for user-defined literal.
+	Log(const char *str, size_t len);
+	// C++ likes us to have the call operator defined.
+	template<typename... Args>
+	Log & operator () (const Args&... args)
 	{
-		// Iterate the event loop every 5 seconds unless
-		// an event is happening.
-		mplexer->Multiplex(5);
+		this->message = this->message.fmt(args...);
+		return *this;
 	}
 
-	return EXIT_SUCCESS;
+	// When we actually call the print function.
+	~Log();
 };
+
+// Allow for "Here is the value: %s!"_l("the value!"); style logs.
+inline Log operator "" _l(const char *str, size_t len) { return Log(str, len); }
