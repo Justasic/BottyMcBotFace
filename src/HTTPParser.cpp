@@ -26,45 +26,20 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#include <cstdio>
-#include <cstdlib>
-#include "SocketMultiplexer.h"
-#include "json.hpp"
-#include "ThreadEngine.h"
-#include "TimerReactor.h"
-#include "Log.h"
+#include "HTTPParser.h"
 
-// Global var, include SocketMultiplexer.h to access it
-SocketMultiplexer *mplexer;
-ThreadHandler *thread;
-TimerReactor *reactor;
 
-int main(int argc, char **argv)
+HTTPSocket::HTTPSocket(bool isipv6) : SecureBufferedSocket(isipv6), ConnectionSocket(isipv6), Socket(isipv6)
 {
-	"Hello World! :D"_l;
 
-    // Initialize the thread engine first.
-    ThreadHandler engine;
-    engine.Initialize();
-    thread = &engine;
+}
 
-    // Now that our thread engine is up, initialize
-    // the timer reactor.
-    TimerReactor tr;
-    reactor = &tr;
+HTTPSocket::~HTTPSocket()
+{
 
-    // Now initialize the socket engine.
-	SocketMultiplexer m;
-	mplexer = &m;
+}
 
-	mplexer->Initialize();
+void HTTPSocket::OnSSLConnect()
+{
 
-	while (true)
-	{
-		// Iterate the event loop every 5 seconds unless
-		// an event is happening.
-		mplexer->Multiplex(5);
-	}
-
-	return EXIT_SUCCESS;
-};
+}

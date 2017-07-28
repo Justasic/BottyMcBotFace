@@ -26,45 +26,43 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#include <cstdio>
-#include <cstdlib>
-#include "SocketMultiplexer.h"
-#include "json.hpp"
-#include "ThreadEngine.h"
-#include "TimerReactor.h"
-#include "Log.h"
+#pragma once
+#include "kstring.h"
+#include "Socket.h"
 
-// Global var, include SocketMultiplexer.h to access it
-SocketMultiplexer *mplexer;
-ThreadHandler *thread;
-TimerReactor *reactor;
+// Description:
+// The point of this file is purely to parse the Http protocol
+// (mostly the http headers) and allow for rapid parsing of those headers.
 
-int main(int argc, char **argv)
+class HTTPSocket;
+// This is the response class used to reply to the http session.
+class HTTPResponse
 {
-	"Hello World! :D"_l;
+	kvector header;
+public:
+	HTTPResponse *parent;
 
-    // Initialize the thread engine first.
-    ThreadHandler engine;
-    engine.Initialize();
-    thread = &engine;
+	// Do not allow parentless responses.
+	HTTPResponse() = delete;
+	HTTPResponse(const HTTPSocket *parent);
+	HTTPResponse(const HTTPResponse &);
 
-    // Now that our thread engine is up, initialize
-    // the timer reactor.
-    TimerReactor tr;
-    reactor = &tr;
+	~HTTPResponse();
 
-    // Now initialize the socket engine.
-	SocketMultiplexer m;
-	mplexer = &m;
 
-	mplexer->Initialize();
+};
 
-	while (true)
-	{
-		// Iterate the event loop every 5 seconds unless
-		// an event is happening.
-		mplexer->Multiplex(5);
-	}
+class HTTPSocket : public SecureBufferedSocket
+{
+public:
+	HTTPSocket(bool isipv6 = false);
+	~HTTPSocket();
 
-	return EXIT_SUCCESS;
+	// We've connected...
+	void OnSSLConnect();
+
+	// Since this is ANOTHER inherited class, we have ANOTHER
+	// pure virtual which must be defined by the parent class.
+	// This will then pass the HTTPResponse header to it and allow
+	// those people to reply.
 };

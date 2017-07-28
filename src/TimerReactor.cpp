@@ -76,9 +76,8 @@ void TimerReactor::ExecuteTimers()
                         bool repeat = t.callback();
                         if (!repeat)
                         {
-                            this->mtex.lock();
+                            std::unique_lock<std::mutex> lock(this->mtex);
                             this->timers.erase(it);
-                            this->mtex.unlock();
                         }
                         else
                         {
@@ -106,4 +105,3 @@ void TimerReactor::ExecuteTimers()
         std::this_thread::sleep_until(sleepduration);
     }
 }
-

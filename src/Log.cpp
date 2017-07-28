@@ -26,45 +26,25 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#include <cstdio>
-#include <cstdlib>
-#include "SocketMultiplexer.h"
-#include "json.hpp"
-#include "ThreadEngine.h"
-#include "TimerReactor.h"
 #include "Log.h"
+#include <unistd.h>
 
-// Global var, include SocketMultiplexer.h to access it
-SocketMultiplexer *mplexer;
-ThreadHandler *thread;
-TimerReactor *reactor;
+// See https://stackoverflow.com/a/38237385
+//constexpr const char* str_end(const char *str) { return *str ? str_end(str + 1) : str; }
+//constexpr bool str_slant(const char *str) { return *str == '/' ? true : (*str ? str_slant(str + 1) : false); }
+//constexpr const char* r_slant(const char* str) { return *str == '/' ? (str + 1) : r_slant(str - 1); }
+//constexpr const char* file_name(const char* str) { return str_slant(str) ? r_slant(str_end(str)) : str; }
 
-int main(int argc, char **argv)
+Log::Log(const char *str, size_t len)
 {
-	"Hello World! :D"_l;
+	// Make kstring deal with it! :D
+	this->message = kstring(str, len);
+}
 
-    // Initialize the thread engine first.
-    ThreadHandler engine;
-    engine.Initialize();
-    thread = &engine;
+Log::~Log()
+{
+	if (this->message.isnull() || this->message.empty())
+		return;
 
-    // Now that our thread engine is up, initialize
-    // the timer reactor.
-    TimerReactor tr;
-    reactor = &tr;
-
-    // Now initialize the socket engine.
-	SocketMultiplexer m;
-	mplexer = &m;
-
-	mplexer->Initialize();
-
-	while (true)
-	{
-		// Iterate the event loop every 5 seconds unless
-		// an event is happening.
-		mplexer->Multiplex(5);
-	}
-
-	return EXIT_SUCCESS;
-};
+	tfm::printf("%d %d %d: %s\n" , time(nullptr), getpid(), getuid(), this->message);
+}

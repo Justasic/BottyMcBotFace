@@ -26,45 +26,12 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#include <cstdio>
-#include <cstdlib>
-#include "SocketMultiplexer.h"
-#include "json.hpp"
-#include "ThreadEngine.h"
-#include "TimerReactor.h"
-#include "Log.h"
+#pragma once
+#include "HTTPParser.h"
 
-// Global var, include SocketMultiplexer.h to access it
-SocketMultiplexer *mplexer;
-ThreadHandler *thread;
-TimerReactor *reactor;
-
-int main(int argc, char **argv)
+class WebSocket : public HTTPSocket
 {
-	"Hello World! :D"_l;
-
-    // Initialize the thread engine first.
-    ThreadHandler engine;
-    engine.Initialize();
-    thread = &engine;
-
-    // Now that our thread engine is up, initialize
-    // the timer reactor.
-    TimerReactor tr;
-    reactor = &tr;
-
-    // Now initialize the socket engine.
-	SocketMultiplexer m;
-	mplexer = &m;
-
-	mplexer->Initialize();
-
-	while (true)
-	{
-		// Iterate the event loop every 5 seconds unless
-		// an event is happening.
-		mplexer->Multiplex(5);
-	}
-
-	return EXIT_SUCCESS;
+public:
+	WebSocket();
+	~WebSocket();
 };

@@ -26,45 +26,20 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#include <cstdio>
-#include <cstdlib>
-#include "SocketMultiplexer.h"
-#include "json.hpp"
-#include "ThreadEngine.h"
-#include "TimerReactor.h"
-#include "Log.h"
 
-// Global var, include SocketMultiplexer.h to access it
-SocketMultiplexer *mplexer;
-ThreadHandler *thread;
-TimerReactor *reactor;
+// Discord API docs: https://discordapp.com/developers/docs/reference
+// OpenSSL API docs: https://wiki.openssl.org/index.php/SSL/TLS_Client
+// Discord uses a REST api over HTTPS websockets so this should be fun to connect to.
+#pragma once
+#include "WebSocket.h"
 
-int main(int argc, char **argv)
+// The final Discord protocol class. This is built on like 4 other damn protocols
+// because ofc we have to reinvent the damn internet over HTTP with WebSockets.
+// fucking stupid hipster programmers and retards. I mean I get why y'all want
+// web sockets but seriously? doing http? why isnt http a fucking dead protocol...
+class Discord : public WebSocket
 {
-	"Hello World! :D"_l;
-
-    // Initialize the thread engine first.
-    ThreadHandler engine;
-    engine.Initialize();
-    thread = &engine;
-
-    // Now that our thread engine is up, initialize
-    // the timer reactor.
-    TimerReactor tr;
-    reactor = &tr;
-
-    // Now initialize the socket engine.
-	SocketMultiplexer m;
-	mplexer = &m;
-
-	mplexer->Initialize();
-
-	while (true)
-	{
-		// Iterate the event loop every 5 seconds unless
-		// an event is happening.
-		mplexer->Multiplex(5);
-	}
-
-	return EXIT_SUCCESS;
+public:
+	Discord();
+	~Discord();
 };
