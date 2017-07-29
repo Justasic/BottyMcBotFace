@@ -41,29 +41,36 @@ TimerReactor *reactor;
 
 int main(int argc, char **argv)
 {
-	"Hello World! :D"_l;
-
-    // Initialize the thread engine first.
-    ThreadHandler engine;
-    engine.Initialize();
-    thread = &engine;
-
-    // Now that our thread engine is up, initialize
-    // the timer reactor.
-    TimerReactor tr;
-    reactor = &tr;
-
-    // Now initialize the socket engine.
-	SocketMultiplexer m;
-	mplexer = &m;
-
-	mplexer->Initialize();
-
-	while (true)
+	try
 	{
-		// Iterate the event loop every 5 seconds unless
-		// an event is happening.
-		mplexer->Multiplex(5);
+		"Hello World! :D"_l;
+
+		// Initialize the thread engine first.
+		ThreadHandler engine;
+		engine.Initialize();
+		thread = &engine;
+
+		// Now that our thread engine is up, initialize
+		// the timer reactor.
+		TimerReactor tr;
+		reactor = &tr;
+
+		// Now initialize the socket engine.
+		SocketMultiplexer m;
+		mplexer = &m;
+
+		mplexer->Initialize();
+
+		while (true)
+		{
+			// Iterate the event loop every 5 seconds unless
+			// an event is happening.
+			mplexer->Multiplex(5);
+		}
+	} catch (const BasicException &ex)
+	{
+		"Basic Exception was caught at highest level of the application with the following error message: %s"_lc(ex.what());
+		return EXIT_FAILURE;
 	}
 
 	return EXIT_SUCCESS;
