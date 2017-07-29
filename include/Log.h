@@ -28,13 +28,13 @@
  */
 #pragma once
 #include "kstring.h"
+#include <mutex>
+
 
 class Log
 {
 	// Our message to print.
 	kstring message;
-	// Local lock for thread safety.
-	std::mutex mtex;
 public:
 	// Defined for user-defined literal.
 	Log(const char *str, size_t len);
@@ -42,6 +42,9 @@ public:
 	template<typename... Args>
 	Log & operator () (const Args&... args)
 	{
+		// Local lock for thread safety.
+		extern std::mutex loglock;
+		std::unique_lock<std::mutex> lock(loglock);
 		this->message = this->message.fmt(args...);
 		return *this;
 	}
