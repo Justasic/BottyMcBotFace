@@ -28,6 +28,7 @@
  */
 #include "Log.h"
 #include <unistd.h>
+#include <mutex>
 
 // See https://stackoverflow.com/a/38237385
 //constexpr const char* str_end(const char *str) { return *str ? str_end(str + 1) : str; }
@@ -46,14 +47,7 @@ const char levelstrings[][10] = {
 
 Log::Log(const char *str, size_t len, loglevel_t level) noexcept(false): level(level)
 {
-	try {
-		std::unique_lock<std::mutex> lock(loglock);
-		// Make kstring deal with it! :D
-		this->message = kstring(str, len);
-	} catch (const std::system_error &e)
-	{
-		printf("Received a system error exception in log class constructor: %s (%d)\n", e.what(), e.code().value());
-	}
+	this->message = kstring(str, len);
 }
 
 Log::~Log() noexcept(false)

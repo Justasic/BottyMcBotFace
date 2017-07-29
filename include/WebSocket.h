@@ -28,8 +28,9 @@
  */
 #pragma once
 #include "HTTPParser.h"
+#include "Socket.h"
 
-class WebSocket : public HTTPSocket
+class WebSocket : public SecureBufferedSocket
 {
 public:
 	WebSocket();

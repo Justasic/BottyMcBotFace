@@ -28,41 +28,32 @@
  */
 #pragma once
 #include "kstring.h"
-#include "Socket.h"
+#include "ManagedBuffer.h"
 
 // Description:
 // The point of this file is purely to parse the Http protocol
 // (mostly the http headers) and allow for rapid parsing of those headers.
+// This is more of a helper class to keep stuff organized. The real processing
+// happens in Discord.h and not this file.
 
-class HTTPSocket;
-// This is the response class used to reply to the http session.
-class HTTPResponse
+// This is the reponse from the server.
+class HTTPData
 {
-	kvector header;
+	kmap<kstring> header;
 public:
-	HTTPResponse *parent;
+	// the http status code (eg, 200 OK)
+	int status;
+	// a managed buffer of the http content.
+	ManagedBuffer content;
 
-	// Do not allow parentless responses.
-	HTTPResponse() = delete;
-	HTTPResponse(const HTTPSocket *parent);
-	HTTPResponse(const HTTPResponse &);
+	// Do not allow dataless classes
+	HTTPData() = delete;
+	HTTPData(const ManagedBuffer &httpdata);
+	HTTPData(const HTTPData &);
 
-	~HTTPResponse();
+	~HTTPData();
 
-
+	// get a value from the header fields.
+	kstring GetField(const kstring &str) const;
 };
 
-class HTTPSocket : public SecureBufferedSocket
-{
-public:
-	HTTPSocket(bool isipv6 = false);
-	~HTTPSocket();
-
-	// We've connected...
-	void OnSSLConnect();
-
-	// Since this is ANOTHER inherited class, we have ANOTHER
-	// pure virtual which must be defined by the parent class.
-	// This will then pass the HTTPResponse header to it and allow
-	// those people to reply.
-};

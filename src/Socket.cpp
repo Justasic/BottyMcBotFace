@@ -27,6 +27,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "Exceptions.h"
+#include "Log.h"
 #include "Socket.h"
 #include "SocketMultiplexer.h"
 #include <unistd.h>
@@ -119,8 +120,7 @@ Socket::Socket(int sock, bool isipv6, int type)
 
 Socket::~Socket()
 {
-	//Log(LOG_VERBOSE) << "[Socket Engine] Destroying socket " << this->sock_fd;
-	tfm::printf("[Socket Engine] Destroying socket %d\n", this->sock_fd);
+	"[Socket Engine] Destroying socket %d"_l(this->sock_fd);
 
 	if (mplexer)
 		mplexer->RemoveSocket(this);
@@ -140,7 +140,7 @@ void Socket::SetNonBlocking(bool status)
 
 	if (fcntl(this->sock_fd, F_SETFL, flags) == -1)
 		//Log(LOG_SOCKET) << "Cannot set socket " << this->sock_fd << " as nonblocking with flag O_NONBLOCK: " << strerror(errno);
-		tfm::printf("Cannot set socket %d as nonblocking with flag O_NONBLOCK: %s\n", this->sock_fd, strerror(errno));
+		"Cannot set socket %d as nonblocking with flag O_NONBLOCK: %s"_le(this->sock_fd, strerror(errno));
 }
 
 size_t Socket::Write(const void *data, size_t len)
@@ -190,8 +190,7 @@ bool ConnectionSocket::MultiplexEvent()
 		{
 			errno = optval;
 			this->OnError(optval ? strerror(errno) : "");
-			//Log(LOG_VERBOSE) << "Socket " << this->sock_fd << " being killed before connect() could finish.";
-			tfm::printf("Socket %d being killed before connect() could finish.", this->sock_fd);
+			"Socket %d being killed before connect() could finish."_l(this->sock_fd);
 			this->status |= SS_DEAD;
 		}
 	}
@@ -345,7 +344,7 @@ ListeningSocket::ListeningSocket(const std::string &bindaddr, short port, bool i
 	}
 	else
 		//Log(LOG_WARN) << "Unknown family type " << this->sa.sa.sa_family;
-		tfm::printf("Unknown family type %s\n", this->sa.sa.sa_family);
+		"Unknown family type %s"_lw(this->sa.sa.sa_family);
 
 	switch(value)
 	{
@@ -365,7 +364,7 @@ ListeningSocket::ListeningSocket(const std::string &bindaddr, short port, bool i
 	} catch (SocketException &e)
 	{
 		//Log(LOG_ERROR) << "[Socket Engine]: " << e.what();
-		tfm::printf("[Socket Engine]: %s\n", e.what());
+		"[Socket Engine]: %s"_le(e.what());
 		goto retry;
 	}
 
@@ -395,7 +394,7 @@ bool ListeningSocket::MultiplexRead()
 	}
 	else
 		//Log(LOG_SOCKET) << "[WARNING] Unable to accept connection: " << strerror(errno);
-		tfm::printf("[WARNING] Unable to accept connection: %s\n", strerror(errno));
+		"Unable to accept connection: %s"_lw(strerror(errno));
 
 	return true;
 }

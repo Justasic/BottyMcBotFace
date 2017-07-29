@@ -42,4 +42,7 @@ class Discord : public WebSocket
 public:
 	Discord();
 	~Discord();
+
+	// Handle our connection.
+	void OnSSLConnect();
 };

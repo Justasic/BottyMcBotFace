@@ -28,7 +28,6 @@
  */
 #pragma once
 #include "kstring.h"
-#include <mutex>
 
 typedef enum
 {
@@ -51,16 +50,7 @@ public:
 	template<typename... Args>
 	Log & operator () (const Args&... args) noexcept(false)
 	{
-		try {
-			// Local lock for thread safety.
-			extern std::mutex loglock;
-			std::unique_lock<std::mutex> lock(loglock);
-			this->message = this->message.fmt(args...);
-		} catch (const std::system_error &e)
-		{
-			// Well... something fucked up.
-			printf("Caught system error in log class: %s (%d)\n", e.what(), e.code().value());
-		}
+		this->message = this->message.fmt(args...);
 		return *this;
 	}
 

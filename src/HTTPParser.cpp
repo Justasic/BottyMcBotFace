@@ -27,19 +27,78 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "HTTPParser.h"
+#include "Exceptions.h"
 
 
-HTTPSocket::HTTPSocket(bool isipv6) : SecureBufferedSocket(isipv6), ConnectionSocket(isipv6), Socket(isipv6)
+// In this constructor we assume that all HTTP data (at least
+// all the data from the header and the \r\n is here) is inside
+// the managed buffer. As we read and interpret this buffer we fill
+// out our class to be more useful.
+HTTPData::HTTPData(const ManagedBuffer &httpdata)
 {
+	// First, start by splitting the header up from content and header.
+	// HTTP deliminates header from content with "\r\n\r\n" characters.
+	// Finding these character sequences will tell us how long the header
+	// is and how much data to add in. Everything after those bytes is just
+	// copied into the other managed buffer for "content". Since we're
+	// looking for those bytes, we have a buffer of only 4 bytes so we
+	// examine the stream at 4 bytes each.
+	const char findstr[] = { '\r', '\n', '\r', '\n' };
+	char buffer[sizeof(findstr)] = {0};
+	size_t cur = sizeof(findstr); // curser position.
 
+	memcpy(buffer, findstr, sizeof(findstr));
+	// Evaluate each 4 bytes, copy 4 more bytes if true.
+	while(memcmp(buffer, findstr, sizeof(findstr)) != 0)
+	{
+		// Make sure we don't buffer overflow.
+		size_t copy = std::min(sizeof(findstr), (httpdata.size() - cur));
+		memcpy(buffer, *httpdata, copy);
+		cur += copy;
+	}
+
+	// We didn't find shit, better blow up.
+	if (cur == httpdata.size())
+		throw BasicException("FIXME: throw invalid data exception in HTTPData constructor");
+
+	// Tell kstring that our string is only as big as our curser to truncate it.
+	kstring httpheadersstr = kstring(reinterpret_cast<const char*>(*httpdata), cur);
+	// tokenize our string into individual lines.
+	kvector httpheaderlines = httpheadersstr.expand("\r\n");
+	// tokenize to a map.
+	for (auto &it : httpheaderlines)
+	{
+		auto items = it.expand(":");
+		this->header[items[0]] = items[1];
+	}
+
+	// Now copy all the rest of the data (aka. "content") to the content variable.
+	size_t cpysize = httpdata.size() - cur;
+	this->content.AllocateAhead(cpysize);
+	// Dirty hack but whatever.
+	memcpy(*this->content, reinterpret_cast<uint8_t*>(*httpdata) + cur, cpysize);
 }
 
-HTTPSocket::~HTTPSocket()
+HTTPData::HTTPData(const HTTPData &other)
 {
+	this->header = other.header;
+	this->status = other.status;
 
+	// Copy content.
+	this->content.AllocateAhead(other.content.size());
+	memcpy(*this->content, *other.content, this->content.size());
 }
 
-void HTTPSocket::OnSSLConnect()
+HTTPData::~HTTPData()
 {
+}
 
+kstring HTTPData::GetField(const kstring &str) const
+{
+	for (auto&& [key, value] : this->header)
+	{
+		if (key == str)
+			return value;
+	}
+	return "";
 }
