@@ -103,28 +103,38 @@ kstring::~kstring()
 
 size_t kstring::find(const kstring& op2, size_t index) const
 {
+    //If either string is null, or the length is equal to 0, leave.
     if((!op2.str || !this->str) || (this->len == 0 || op2.len == 0))
         return kstring::npos;
     int length = this->len;
     int op2_length = op2.len;
     bool is_match = false;
 
+    //go through this->str and see if there is a match for the first
+    //element of the for loop.
     for(int i = index; i < length && !is_match; ++i)
     {
+        //if there is a match, set is_match to true
         if(this->str[i] == op2.str[0] && (len - i) <= op2.len)
         {
             is_match = true;
+            //go through the rest of op2.str to make sure it is a match
+            //skips index 0 since it was already compared to.
             for(int j = 1, k = i+1; j < op2_length && is_match; ++j, ++k)
             {
+                //if there isn't a match, set is_match to false
                 if(this->str[k] != op2.str[j])
                     is_match = false;
             }
         }
 
+        //if op2.str was a match, index i where it was found.
         if(is_match)
             index = i;
     }
 
+    //return the index if there was a match.
+    //return npos if no match was found.
     if(is_match)
         return index;
     return kstring::npos;
