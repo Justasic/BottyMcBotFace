@@ -35,16 +35,20 @@
 //constexpr const char* r_slant(const char* str) { return *str == '/' ? (str + 1) : r_slant(str - 1); }
 //constexpr const char* file_name(const char* str) { return str_slant(str) ? r_slant(str_end(str)) : str; }
 
+std::mutex loglock;
+
 Log::Log(const char *str, size_t len)
 {
+	std::unique_lock<std::mutex> lock(loglock);
 	// Make kstring deal with it! :D
 	this->message = kstring(str, len);
 }
 
 Log::~Log()
 {
+	std::unique_lock<std::mutex> lock(loglock);
 	if (this->message.isnull() || this->message.empty())
 		return;
 
-	tfm::printf("%d %d %d: %s\n" , time(nullptr), getpid(), getuid(), this->message);
+	tfm::printf("[%d %d %d]: %s\n" , time(nullptr), getpid(), getuid(), this->message);
 }
