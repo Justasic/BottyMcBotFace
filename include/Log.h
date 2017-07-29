@@ -30,28 +30,47 @@
 #include "kstring.h"
 #include <mutex>
 
+typedef enum
+{
+	LOG_INFO, // General messages ("hello!")
+	LOG_WARN, // warnings ("This config value is unset, using default!")
+	LOG_ERR,  // general errors ("Cannot create file: Permission denied.")
+	LOG_CRIT  // irrecoverable error ("program encountered a segmentation fault")
+} loglevel_t;
 
 class Log
 {
 	// Our message to print.
 	kstring message;
+	// Our log level.
+	loglevel_t level;
 public:
 	// Defined for user-defined literal.
-	Log(const char *str, size_t len);
+	Log(const char *str, size_t len, loglevel_t level) noexcept(false);
 	// C++ likes us to have the call operator defined.
 	template<typename... Args>
-	Log & operator () (const Args&... args)
+	Log & operator () (const Args&... args) noexcept(false)
 	{
-		// Local lock for thread safety.
-		extern std::mutex loglock;
-		std::unique_lock<std::mutex> lock(loglock);
-		this->message = this->message.fmt(args...);
+		try {
+			// Local lock for thread safety.
+			extern std::mutex loglock;
+			std::unique_lock<std::mutex> lock(loglock);
+			this->message = this->message.fmt(args...);
+		} catch (const std::system_error &e)
+		{
+			// Well... something fucked up.
+			printf("Caught system error in log class: %s (%d)\n", e.what(), e.code().value());
+		}
 		return *this;
 	}
 
 	// When we actually call the print function.
-	~Log();
+	~Log() noexcept(false);
 };
 
 // Allow for "Here is the value: %s!"_l("the value!"); style logs.
-inline Log operator "" _l(const char *str, size_t len) { return Log(str, len); }
+// This is the info/generic operator.
+inline Log operator "" _l (const char *str, size_t len) { return Log(str, len, LOG_INFO); }
+inline Log operator "" _lw(const char *str, size_t len) { return Log(str, len, LOG_WARN); }
+inline Log operator "" _le(const char *str, size_t len) { return Log(str, len, LOG_ERR);  }
+inline Log operator "" _lc(const char *str, size_t len) { return Log(str, len, LOG_CRIT); }

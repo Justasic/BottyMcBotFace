@@ -37,18 +37,39 @@
 
 std::mutex loglock;
 
-Log::Log(const char *str, size_t len)
+const char levelstrings[][10] = {
+	"INFO",    // LOG_INFO
+	"WARNING", // LOG_WARN
+	"ERROR",   // LOG_ERR
+	"CRITICAL" // LOG_CRIT
+};
+
+Log::Log(const char *str, size_t len, loglevel_t level) noexcept(false): level(level)
 {
-	std::unique_lock<std::mutex> lock(loglock);
-	// Make kstring deal with it! :D
-	this->message = kstring(str, len);
+	try {
+		std::unique_lock<std::mutex> lock(loglock);
+		// Make kstring deal with it! :D
+		this->message = kstring(str, len);
+	} catch (const std::system_error &e)
+	{
+		printf("Received a system error exception in log class constructor: %s (%d)\n", e.what(), e.code().value());
+	}
 }
 
-Log::~Log()
+Log::~Log() noexcept(false)
 {
-	std::unique_lock<std::mutex> lock(loglock);
-	if (this->message.isnull() || this->message.empty())
-		return;
+	try {
+		std::unique_lock<std::mutex> lock(loglock);
+		if (this->message.isnull() || this->message.empty())
+			return;
 
-	tfm::printf("[%d %d %d]: %s\n" , time(nullptr), getpid(), getuid(), this->message);
+		tfm::printf("[%d %d %d] %s: %s\n" , time(nullptr), getpid(), getuid(), levelstrings[this->level], this->message);
+	} catch(const std::system_error &e)
+	{
+		printf("Received a system error exception in log class: %s (%d)\n", e.what(), e.code().value());
+	}
+	catch (const std::exception &e)
+	{
+		printf("Received a general exception in the log class: %s\n", e.what());
+	}
 }
