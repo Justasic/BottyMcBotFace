@@ -100,8 +100,33 @@ kstring::~kstring()
     len = 0;
 };
 
-size_t kstring::find(const kstring&, size_t) const
+
+size_t kstring::find(const kstring& op2, size_t index) const
 {
+    if((!op2.str || !this->str) || (this->len == 0 || op2.len == 0))
+        return kstring::npos;
+    int length = this->len;
+    int op2_length = op2.len;
+    bool is_match = false;
+
+    for(int i = index; i < length && !is_match; ++i)
+    {
+        if(this->str[i] == op2.str[0] && (len - i) <= op2.len)
+        {
+            is_match = true;
+            for(int j = 1, k = i+1; j < op2_length && is_match; ++j, ++k)
+            {
+                if(this->str[k] != op2.str[j])
+                    is_match = false;
+            }
+        }
+
+        if(is_match)
+            index = i;
+    }
+
+    if(is_match)
+        return index;
     return kstring::npos;
 }
 

@@ -74,7 +74,7 @@ class kstring
         ~kstring();
 
         // Standard functions.
-        size_t find(const kstring &, size_t) const;
+        size_t find(const kstring &, size_t = 0) const;
         kstring substr(size_t = 0, size_t = npos) const;
 
         // a timing-safe compaison of strings (used for passwords)
@@ -137,7 +137,7 @@ class kstring
 
         //READ ONLY for the subscript
         char & operator [] (int);
-		const char & operator [] (int) const;
+	const char & operator [] (int) const;
 
         // Getters/Setters
         inline size_t size() const { return this->len; }
