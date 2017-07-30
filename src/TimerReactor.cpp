@@ -73,8 +73,7 @@ void TimerReactor::ExecuteTimers()
                 // So. We call AddQueue with a lambda function and execute the timer in the thread engine
                 // then check if it's a repeatable timer.
                 thread->AddQueue([this, &t, it]() -> void {
-                        bool repeat = t.callback();
-                        if (!repeat)
+                        if (bool repeat = t.callback(); !repeat)
                         {
                             std::unique_lock<std::mutex> lock(this->mtex);
                             this->timers.erase(it);
