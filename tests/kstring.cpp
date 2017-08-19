@@ -280,3 +280,57 @@ TEST_CASE("kstring can convert numbers", "[kstring]")
 
 
 }
+
+TEST_CASE("Testing find function.")
+{
+    kstring string;
+
+    SECTION("Test if it will find a match at the beginning.")
+    {
+        string ="something to find throughout the string.";
+        int test = string.find("something");
+        REQUIRE(test == 0);
+    }
+
+    SECTION("Test if there is a match later on.")
+    {
+        string ="something to find throughout the string.";
+        int test = string.find("find");
+        REQUIRE(test == 13);
+    }
+
+    SECTION("Test if null is passed in.")
+    {
+        string ="something to find throughout the string.";
+        int test = string.find("");
+        REQUIRE(test == -1);
+    }
+
+    SECTION("Test if string if null kstring is passed in.")
+    {
+        int test = string.find("something");
+        REQUIRE(test == -1);
+    }
+
+    SECTION("Test if a null kstring is passed through.")
+    {
+        kstring badString;
+        string = "something to find throughout the string.";
+        int test = string.find(badString);
+        REQUIRE(test == -1);
+    }
+
+    SECTION("Test for the very end of a kstring.")
+    {
+        string = "something to find throughout the string.";
+        int test = string.find(".");
+        REQUIRE(test == 39);
+    }
+
+    SECTION("Test if there is no match.")
+    {
+        string = "something to find throughout the string.";
+        int test = string.find("x");
+        REQUIRE(test == -1);
+    }
+}

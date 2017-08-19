@@ -115,7 +115,7 @@ size_t kstring::find(const kstring& op2, size_t index) const
     for(int i = index; i < length && !is_match; ++i)
     {
         //if there is a match, set is_match to true
-        if(this->str[i] == op2.str[0] && (len - i) <= op2.len)
+        if(this->str[i] == op2.str[0] && (len - i) >= op2.len)
         {
             is_match = true;
             //go through the rest of op2.str to make sure it is a match
