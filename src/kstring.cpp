@@ -140,9 +140,35 @@ size_t kstring::find(const kstring& op2, size_t index) const
     return kstring::npos;
 }
 
-kstring kstring::substr(size_t, size_t) const
+kstring kstring::substr(size_t begin, size_t end) const
 {
-    return *this;
+    //Sets all the variables for ints for ease of use.
+    int length = this->len;
+    int finish = end;
+    int start = begin;
+    if(finish == -1)
+        finish = length;
+
+    //Checks all the bad inputs/ info before getting to the function.
+    if((this->str == nullptr || start >= length) || (finish > length || start > finish))
+        return *this;
+
+    //Creates a temp array of the max value possible for substr
+    char array[length +1];
+
+    //Coppies the chars to the temp array
+    for(int i = start, j = 0; i <= finish; ++i, ++j)
+        array[j] = str[i];
+
+    //set null at the very last possible index.
+    int endArray = finish-start;
+    array[++endArray] = '\0';
+
+    //create a kstring with array to be returned.
+    kstring temp(array);
+   
+    //returns the new kstring.
+    return temp;
 }
 
 bool kstring::securecmp(const kstring &otherstr)

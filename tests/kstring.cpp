@@ -334,3 +334,45 @@ TEST_CASE("Testing find function.")
         REQUIRE(test == -1);
     }
 }
+
+TEST_CASE("Testing substr function.")
+{
+    kstring string;
+
+    SECTION("Test if it will do the whole string.")
+    {
+        string ="something to find throughout the string.";
+        int test = string.find("something");
+        kstring compare(string.substr(test));
+        REQUIRE(compare == string);
+    }
+
+    SECTION("Test if it will a portion of the string")
+    {
+        string ="something to find throughout the string.";
+        kstring compare = string.substr(0,3);
+        REQUIRE(compare == "some");
+    }
+
+    SECTION("Test to see if it will do an anding part of the array.")
+    {
+        string = "something to find throughout the string.";
+        int test = string.find(".");
+        kstring compare = string.substr(test);
+        REQUIRE(compare == ".");
+    }
+
+    SECTION("Test if over the range of the array.")
+    {
+        string = "something";
+        kstring compare = string.substr(9);
+        REQUIRE(compare == "something");
+    }
+
+    SECTION("Test if the string is null")
+    {
+        kstring compare = string.substr(0);
+        REQUIRE(compare == nullptr);
+    }
+
+}
