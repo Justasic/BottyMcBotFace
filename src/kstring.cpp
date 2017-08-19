@@ -101,10 +101,11 @@ kstring::~kstring()
 };
 
 
-size_t kstring::find(const kstring& op2, size_t index) const
+size_t kstring::find(const kstring& op2, size_t start) const
 {
+    int index = start;
     //If either string is null, or the length is equal to 0, leave.
-    if((!op2.str || !this->str) || (this->len == 0 || op2.len == 0))
+    if((!op2.str || !this->str) || (this->len == 0 || op2.len == 0) || start > this->len)
         return kstring::npos;
     int length = this->len;
     int op2_length = op2.len;
@@ -150,7 +151,7 @@ kstring kstring::substr(size_t begin, size_t end) const
         finish = length;
 
     //Checks all the bad inputs/ info before getting to the function.
-    if((this->str == nullptr || start >= length) || (finish > length || start > finish))
+    if((this->str == nullptr || start >= length) || (finish > length || start > finish) || start < 0)
         return *this;
 
     //Creates a temp array of the max value possible for substr

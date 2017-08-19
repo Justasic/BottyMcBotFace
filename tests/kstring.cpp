@@ -306,7 +306,7 @@ TEST_CASE("Testing find function.")
         REQUIRE(test == -1);
     }
 
-    SECTION("Test if string if null kstring is passed in.")
+    SECTION("Test if string if null kstring is used.")
     {
         int test = string.find("something");
         REQUIRE(test == -1);
@@ -333,6 +333,27 @@ TEST_CASE("Testing find function.")
         int test = string.find("x");
         REQUIRE(test == -1);
     }
+
+    SECTION("Test for starting at a different index.")
+    {
+        string = "test testing for a different test.";
+        int test = string.find("test", 4);
+        REQUIRE(test == 5);
+    }
+
+    SECTION("Test for starting past the range of string.")
+    {
+        string = "something to find throughout the string.";
+        int test = string.find(".", 40);
+        REQUIRE(test == -1);
+    }
+    
+    SECTION("Test for starting before the range of string.")
+    {
+        string = "something to find throughout the string.";
+        int test = string.find(".",-10);
+        REQUIRE(test == -1);
+    }
 }
 
 TEST_CASE("Testing substr function.")
@@ -354,7 +375,7 @@ TEST_CASE("Testing substr function.")
         REQUIRE(compare == "some");
     }
 
-    SECTION("Test to see if it will do an anding part of the array.")
+    SECTION("Test to see if it will do an ending part of the array.")
     {
         string = "something to find throughout the string.";
         int test = string.find(".");
@@ -369,10 +390,31 @@ TEST_CASE("Testing substr function.")
         REQUIRE(compare == "something");
     }
 
-    SECTION("Test if the string is null")
+    SECTION("Test if the string is null.")
     {
         kstring compare = string.substr(0);
         REQUIRE(compare == nullptr);
+    }
+
+    SECTION("Test if a portion is over the range of string.")
+    {
+        string = "something";
+        kstring compare = string.substr(0,9);
+        REQUIRE(compare == "something");
+    }
+
+    SECTION("Test if its under the range of string.")
+    {
+        string = "something to test throughout the string.";
+        kstring compare = string.substr(-1);
+        REQUIRE(compare == "something to test throughout the string.");
+    }
+
+    SECTION("Test if a portion of it is under the range of string.")
+    {
+        string = "something to test throughout the string.";
+        kstring compare = string.substr(-2,5);
+        REQUIRE(compare == "something to test throughout the string.");
     }
 
 }
