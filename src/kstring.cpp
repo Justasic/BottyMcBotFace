@@ -66,9 +66,9 @@ kstring::kstring(const kstring &copy_from) : str(nullptr), len(0)
     if (!copy_from.str)
         return;
 
-    len = copy_from.len;
-    str = new char[len +1];
-    std::strcpy(str, copy_from.str);
+    this->len = copy_from.len;
+    this->str = new char[len +1];
+    std::strcpy(this->str, copy_from.str);
 };
 
 //Copy constructor for an array of chars
@@ -77,9 +77,9 @@ kstring::kstring(const char* copy_from) : str(nullptr), len(0)
     if (!copy_from)
         return;
 
-    len = std::strlen(copy_from);
-    str = new char[len +1];
-    std::strcpy(str, copy_from);
+    this->len = std::strlen(copy_from);
+    this->str = new char[len +1];
+    std::strcpy(this->str, copy_from);
 };
 
 // Copy constructor for a std::string
@@ -94,10 +94,10 @@ kstring::kstring(const std::string &copy_from) : str(nullptr), len(0)
 //Deconstructor
 kstring::~kstring()
 {
-    if (str)
-        delete [] str;
-    str = nullptr;
-    len = 0;
+    if (this->str)
+        delete [] this->str;
+    this->str = nullptr;
+    this->len = 0;
 };
 
 
@@ -147,6 +147,7 @@ kstring kstring::substr(size_t begin, size_t end) const
     int length = this->len;
     int finish = end;
     int start = begin;
+    //if finish is == -1 then copy the rest of the string.
     if(finish == -1)
         finish = length;
 
@@ -241,6 +242,7 @@ kstring & kstring::operator= (const kstring & op2)
 
 kstring & kstring::operator= (const std::string &op2)
 {
+    //Safe assumption, since constructors set str to null by default.
     delete [] this->str;
 
     this->len = op2.size();
@@ -270,6 +272,9 @@ kstring & kstring::operator= (const char * op2)
 
 kstring & kstring::operator= (const char ch)
 {
+    if(this->str)
+        delete [] this->str;
+
     this->str = new char[2];
     this->len = 1;
     str[0] = ch;
@@ -547,4 +552,4 @@ const char & kstring::operator [] (int index) const
         return str[index];
     else
         return ch;
-}
+};
