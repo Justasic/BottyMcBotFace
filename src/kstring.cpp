@@ -33,8 +33,22 @@
 //It will overload =, +=, +, <, <=, >, >= operators in the string library, so it
 //will preform deep copies and comparisons, it WILL NOT just check addresses.
 
+// Justin Crawford
+//
+// We cannot use the C++ new operator as it does not allow for `realloc' to be used
+// on the pointers it creates, this unfortunately means we must do some nasty amounts
+// of reinterpret_casts to get type compliance. I may create a special allocator in
+// the future which allows for only looking at one set of reinterpret_casts instead of
+// messy pointer hacking everywhere.
+
 #include "kstring.h"
 #include "ManagedBuffer.h"
+
+
+// "Typesafe" allocators
+template<typename ret> ret tmalloc(size_t sz) { return reinterpret_cast<ret>(malloc(sz)); }
+template<typename ret, typename old> ret trealloc(old o, size_t newsz) { return reinterpret_cast<ret>(realloc(reinterpret_cast<old>(o), newsz)); }
+template<typename old> void tfree(old o) { free(reinterpret_cast(o)); }
 
 inline bool isequalnull(bool s1, bool s2)
 {
@@ -47,17 +61,20 @@ inline bool isequalnull(bool s1, bool s2)
 }
 
 //Default constructor
-kstring::kstring() : str(nullptr), len(0)
+kstring::kstring() : str(nullptr)
 {
 };
 
-kstring::kstring(const char *copy_from, size_t len) : str(nullptr), len(len)
+kstring::kstring(const char *copy_from, size_t len) : str(nullptr)
 {
     if (!copy_from)
         return;
 
-    this->str = new char[this->len + 1];
-    memcpy(this->str, copy_from, this->len);
+    this->str = tmalloc(sizeof(kstring::_string_t) + len);
+    this->str->allocatedsz = sizeof(kstring::_string_t) + len;
+    this->str->length = len;
+    this->str->refs++;
+    memcpy(this->str->str, copy_from, len);
 }
 
 //Copy constructor for a kstring.
@@ -95,9 +112,15 @@ kstring::kstring(const std::string &copy_from) : str(nullptr), len(0)
 kstring::~kstring()
 {
     if (this->str)
-        delete [] this->str;
-    this->str = nullptr;
-    this->len = 0;
+    {
+        // Only free our string if the reference count is zero
+        this->str->refs--;
+        if (!this->str->refs)
+        {
+            tfree(this->str);
+            this->str = nullptr;
+        }
+    }
 };
 
 
@@ -168,7 +191,7 @@ kstring kstring::substr(size_t begin, size_t end) const
 
     //create a kstring with array to be returned.
     kstring temp(array);
-   
+
     //returns the new kstring.
     return temp;
 }
