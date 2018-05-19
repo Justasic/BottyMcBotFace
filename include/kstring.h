@@ -83,7 +83,7 @@ class kstring
 		inline size_t capacity() const {}
 		inline void shrink_to_fit() {}
 		// TODO: All insert() functions.
-		inline kstring &erase(size_t index = 0; size_t count = kstring::npos) {}
+		inline kstring &erase(size_t index = 0, size_t count = kstring::npos) {}
 		inline void push_back(char ch) {}
 		inline void pop_back() { this->erase(this->size()-1, 1); }
 		// TODO: all append() functions.
@@ -156,7 +156,7 @@ class kstring
 		kstring & operator+= (const std::string &);
 		kstring & operator+= (const char *);
 		kstring & operator+= (const char);
-		kstring & operator+= (const kstring s2);
+		kstring & operator+= (const kstring &s2);
 
 		//Able to use std::ostream and std::istream natively
 		friend std::ostream & operator<< (std::ostream &, const kstring&);

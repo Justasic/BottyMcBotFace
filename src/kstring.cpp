@@ -47,8 +47,8 @@
 
 // "Typesafe" allocators
 template<typename ret> ret tmalloc(size_t sz) { return reinterpret_cast<ret>(malloc(sz)); }
-template<typename ret, typename old> ret trealloc(old o, size_t newsz) { return reinterpret_cast<ret>(realloc(reinterpret_cast<old>(o), newsz)); }
-template<typename old> void tfree(old o) { free(reinterpret_cast(o)); }
+template<typename old> auto trealloc(old o, size_t newsz) { return reinterpret_cast<old>(realloc(reinterpret_cast<void*>(o), newsz)); }
+template<typename old> void tfree(old o) { free(reinterpret_cast<void*>(o)); }
 
 inline bool isequalnull(bool s1, bool s2)
 {
@@ -70,7 +70,7 @@ kstring::kstring(const char *copy_from, size_t len) : str(nullptr)
     if (!copy_from)
         return;
 
-    this->str = tmalloc(sizeof(kstring::_string_t) + len);
+    this->str = tmalloc<_string_t*>(sizeof(kstring::_string_t) + len);
     this->str->allocatedsz = sizeof(kstring::_string_t) + len;
     this->str->length = len;
     this->str->refs++;
@@ -78,34 +78,39 @@ kstring::kstring(const char *copy_from, size_t len) : str(nullptr)
 }
 
 //Copy constructor for a kstring.
-kstring::kstring(const kstring &copy_from) : str(nullptr), len(0)
+kstring::kstring(const kstring &copy_from) : str(nullptr)
 {
     if (!copy_from.str)
         return;
 
-    this->len = copy_from.len;
-    this->str = new char[len +1];
-    std::strcpy(this->str, copy_from.str);
+	// hahaha this one is easy ;D
+	this->str = tmalloc<_string_t*>(copy_from.str->allocatedsz);
+	memcpy(this->str, copy_from.str, copy_from.str->allocatedsz);
+	this->str->refs = 1;
 };
 
 //Copy constructor for an array of chars
-kstring::kstring(const char* copy_from) : str(nullptr), len(0)
+kstring::kstring(const char* copy_from) : str(nullptr)
 {
     if (!copy_from)
         return;
 
-    this->len = std::strlen(copy_from);
-    this->str = new char[len +1];
-    std::strcpy(this->str, copy_from);
+    size_t len = std::strlen(copy_from);
+    this->str = tmalloc<_string_t*>(sizeof(kstring::_string_t) + len);
+    this->str->allocatedsz = sizeof(kstring::_string_t) + len;
+    this->str->length = len;
+    this->str->refs++;
+    memcpy(this->str->str, copy_from, len);
 };
 
 // Copy constructor for a std::string
-kstring::kstring(const std::string &copy_from) : str(nullptr), len(0)
+kstring::kstring(const std::string &copy_from) : str(nullptr)
 {
-    this->len = copy_from.size();
-    this->str = new char[this->len + 1];
-    bzero(this->str, this->len + 1);
-    memcpy(this->str, copy_from.c_str(), this->len);
+    this->str = tmalloc<_string_t*>(sizeof(kstring::_string_t) + copy_from.size());
+    this->str->allocatedsz = sizeof(kstring::_string_t) + copy_from.size();
+    this->str->length = copy_from.size();
+    this->str->refs++;
+    memcpy(this->str->str, copy_from.data(), this->str->length);
 }
 
 //Deconstructor
@@ -128,65 +133,68 @@ size_t kstring::find(const kstring& op2, size_t start) const
 {
     int index = start;
     //If either string is null, or the length is equal to 0, leave.
-    if((!op2.str || !this->str) || (this->len == 0 || op2.len == 0) || start > this->len)
+    if ((!op2.str || !this->str) )
         return kstring::npos;
-    int length = this->len;
-    int op2_length = op2.len;
+
+	if ((this->str->length == 0 || op2.str->length == 0) || start > this->str->length)
+		return kstring::npos;
+
     bool is_match = false;
 
     //go through this->str and see if there is a match for the first
     //element of the for loop.
-    for(int i = index; i < length && !is_match; ++i)
+    for (size_t i = index; i < this->str->length && !is_match; ++i)
     {
         //if there is a match, set is_match to true
-        if(this->str[i] == op2.str[0] && (len - i) >= op2.len)
+        if (this->str->str[i] == op2.str->str[0] && (this->str->length - i) >= op2.str->length)
         {
             is_match = true;
             //go through the rest of op2.str to make sure it is a match
             //skips index 0 since it was already compared to.
-            for(int j = 1, k = i+1; j < op2_length && is_match; ++j, ++k)
+            for (size_t j = 1, k = i+1; j < op2.str->length && is_match; ++j, ++k)
             {
                 //if there isn't a match, set is_match to false
-                if(this->str[k] != op2.str[j])
+                if (this->str->str[k] != op2.str->str[j])
                     is_match = false;
             }
         }
 
         //if op2.str was a match, index i where it was found.
-        if(is_match)
+        if (is_match)
             index = i;
     }
 
     //return the index if there was a match.
     //return npos if no match was found.
-    if(is_match)
+    if (is_match)
         return index;
     return kstring::npos;
 }
 
 kstring kstring::substr(size_t begin, size_t end) const
 {
+	if (this->isnull())
+		return *this;
+
     //Sets all the variables for ints for ease of use.
-    int length = this->len;
-    int finish = end;
-    int start = begin;
-    //if finish is == -1 then copy the rest of the string.
-    if(finish == -1)
-        finish = length;
+    size_t length = this->str->length;
+    //if end is == -1 then copy the rest of the string.
+    if (end == -1U)
+        end = length;
 
     //Checks all the bad inputs/ info before getting to the function.
-    if((this->str == nullptr || start >= length) || (finish > length || start > finish) || start < 0)
+    if ((begin >= length) || (end > length || begin > end))
         return *this;
 
     //Creates a temp array of the max value possible for substr
-    char array[length +1];
+    char array[length + 1];
 
-    //Coppies the chars to the temp array
-    for(int i = start, j = 0; i <= finish; ++i, ++j)
-        array[j] = str[i];
+    //Copies the chars to the temp array
+    for (size_t i = begin, j = 0; i <= end; ++i, ++j)
+        array[j] = this->str->str[i];
 
     //set null at the very last possible index.
-    int endArray = finish-start;
+    int endArray = end - begin;
     array[++endArray] = '\0';
 
     //create a kstring with array to be returned.
@@ -201,7 +209,7 @@ bool kstring::securecmp(const kstring &otherstr)
     size_t tmax = otherstr.size() - 1;
     int ret = 0;
 
-    for (size_t n = 0; n < this->len; ++n)
+    for (size_t n = 0; n < this->str->length; ++n)
     {
 		// FIXME: don't call the operator.
         ret |= (this->operator[](n) ^ (n <= tmax ? otherstr[n] : otherstr[tmax]));
@@ -247,32 +255,27 @@ kstring & kstring::operator= (const kstring & op2)
     // Idiot check
     if (!op2.str)
         return *this;
-    //Check for self assignment.
-    if(this == &op2)
-        return *this;
 
-    //Clear up memory, if any is in use.
-    delete [] str;
+	if (!this->isnull())
+		free(this->str);
 
-    //Set str and len to op2's data.
-    len = op2.len;
-    str = new char[len +1];
-    bzero(this->str, this->len + 1);
-    std::strcpy(str, op2.str);
+	// Honestly, it's easier to call our own constructor cuz I'm lazy
+	// This does, however, make a deep copy which is not efficient
+	// but is the same behavior as std::string
+	this->kstring(op2);
 
     return *this;
 };
 
 kstring & kstring::operator= (const std::string &op2)
 {
-    //Safe assumption, since constructors set str to null by default.
-    delete [] this->str;
+	if (op2.empty())
+		return *this;
 
-    this->len = op2.size();
-    this->str = new char[this->len + 1];
-    // Zero memory so we're always null-terminated
-    bzero(this->str, this->len + 1);
-    memcpy(this->str, op2.c_str(), this->len);
+	if (!this->isnull())
+		free(this->str);
+    
+	this->kstring(op2);
 
     return *this;
 }
@@ -281,41 +284,41 @@ kstring & kstring::operator= (const char * op2)
 {
     if (!op2)
         return *this;
-    //Check if str is already in use.
-    if(str)
-        delete []str;
+    if (this->str)
+        free(this->str);
 
-    //Get data for kstring's members
-    len = std::strlen(op2);
-    str = new char[len +1];
-    std::strcpy(str, op2);
+	this->kstring(op2);
 
     return *this;
 };
 
 kstring & kstring::operator= (const char ch)
 {
-    if(this->str)
-        delete [] this->str;
+    if (this->str)
+        free(this->str);
+	
+	this->kstring(ch);
 
-    this->str = new char[2];
-    this->len = 1;
-    str[0] = ch;
-    str[1] = '\0';
     return *this;
 }
 
-kstring & kstring::operator+= (const kstring s2)
+kstring & kstring::operator+= (const kstring &s2)
 {
     if (!s2.str)
         return *this;
 
-    len += s2.len;
-    char * temp = new char[len + 1];
-    std::strcpy(temp, str);
-    std::strcat(temp, s2.str);
-    delete []str;
-    str = temp;
+	size_t newsz = this->str->allocatedsz + s2.str->length;
+
+	_string_t *s = trealloc(this->str, newsz);
+	if (!s)
+		throw std::bad_alloc();
+
+	s->allocatedsz = newsz;
+	std::strncat(s->str, s2.str->str, s2.str->length);
+	s->length += s2.str->length;
+
+	this->str = s;
+
     return *this;
 };
 
@@ -325,12 +328,18 @@ kstring & kstring::operator+= (const char *s2)
         return *this;
 
     size_t s2len = std::strlen(s2);
-    char *tmp = new char[this->len + s2len + 1];
-    memcpy(tmp, this->str, this->len);
-    std::strncat(tmp, s2, this->len + s2len);
-    this->len = this->len + s2len;
-    delete [] str;
-    str = tmp;
+	size_t newsz = this->str->allocatedsz + s2len;
+
+	_string_t *s = trealloc(this->str, newsz);
+	if (!s)
+		throw std::bad_alloc();
+
+	s->allocatedsz = newsz;
+	s->length += s2len;
+	std::strncat(s->str, s2, s2len);
+
+	this->str = s;
+
     return *this;
 }
 
@@ -338,13 +347,14 @@ std::ostream & operator<< (std::ostream &op1, const kstring& op2)
 {
     if (!op2.str)
         return op1;
-    op1 << op2.str;
+
+    op1 << op2.str->str;
+
     return op1;
 };
 
 std::istream & operator>> (std::istream &op1, kstring& op2)
 {
-    //To match with Discord's Char Limit
 	ManagedBuffer mb;
 
 	while (!op1.eof())
@@ -353,10 +363,18 @@ std::istream & operator>> (std::istream &op1, kstring& op2)
 		mb.Write(reinterpret_cast<const void*>(&ch), sizeof(std::istream::int_type));
 	}
 
-    if(op2.str)
-        delete []op2.str;
-    op2.str = new char [op2.len +1];
-	memcpy(reinterpret_cast<void*>(op2.str), *mb, mb.size());
+
+	if (op2.str)
+		tfree(op2.str);
+
+	kstring::_string_t *s = tmalloc<kstring::_string_t*>(mb.size());
+
+	if (!s)
+		throw std::bad_alloc();
+
+	memcpy(reinterpret_cast<void*>(s->str), *mb, mb.size());
+
+	op2.str = s;
 
     return op1;
 };
@@ -367,11 +385,15 @@ kstring operator+ (const kstring &s, char *c)
     // Noop, just return the passed string I guess.
     if (!s.str || !c)
         return s;
-    kstring temp;
-    temp.len = s.len + std::strlen(c);
-    temp.str = new char[temp.len +1];
-    std::strcpy(temp.str, s.str);
-    std::strcat(temp.str, c);
+
+    kstring temp = s;
+	size_t len = std::strlen(c);
+	// TODO: Use kstring::reserve() in the future here.
+	kstring::_string_t *ns = trealloc(temp.str, s.str->allocatedsz + len);
+	if (!ns)
+		throw std::bad_alloc();
+
+    std::strcat(temp.str->str, c);
     return temp;
 };
 
@@ -385,14 +407,18 @@ kstring operator+ (char *c, const kstring &s)
 
 kstring operator+ (const kstring &s, const char *c)
 {
-    if (!c || !s.str)
+    // Noop, just return the passed string I guess.
+    if (!s.str || !c)
         return s;
 
-    kstring temp;
-    temp.len = s.len + std::strlen(c);
-    temp.str = new char[temp.len +1];
-    std::strcpy(temp.str, s.str);
-    std::strcat(temp.str, c);
+    kstring temp = s;
+	size_t len = std::strlen(c);
+	// TODO: Use kstring::reserve() in the future here.
+	kstring::_string_t *ns = trealloc(temp.str, s.str->allocatedsz + len);
+	if (!ns)
+		throw std::bad_alloc();
+
+    std::strcat(temp.str->str, c);
     return temp;
 }
 
@@ -409,7 +435,7 @@ kstring operator+ (const kstring &s1, const kstring &s2)
     if (!s1.str || !s2.str)
         return s1;
 
-    return s1 + s2.str;
+    return s1 + s2.str->str;
 }
 
 
@@ -419,7 +445,7 @@ bool operator < (const kstring & s1, char *c)
     if (!s1.str || !c)
         return false;
 
-    return std::strcmp(s1.str,c) < 0;
+    return std::strcmp(s1.str->str, c) < 0;
 };
 
 bool operator < (char *c, const kstring &s1)
@@ -427,7 +453,7 @@ bool operator < (char *c, const kstring &s1)
     if (!c || s1.str)
         return false;
 
-    return std::strcmp(c,s1.str) <0;
+    return std::strcmp(c, s1.str->str) <0;
 };
 
 bool operator < (const kstring & s1, const kstring & s2)
@@ -435,7 +461,7 @@ bool operator < (const kstring & s1, const kstring & s2)
     if (!s1.str || !s2.str)
         return false;
 
-    return std::strcmp(s1.str,s2.str) < 0;
+    return std::strcmp(s1.str->str, s2.str->str) < 0;
 };
 
 bool operator <= (const kstring & s1, char *c)
@@ -443,7 +469,7 @@ bool operator <= (const kstring & s1, char *c)
     if (!s1.str || !c)
         return false;
 
-    return std::strcmp(s1.str,c) <= 0;
+    return std::strcmp(s1.str->str, c) <= 0;
 };
 
 bool operator <= (char *c, const kstring &s1)
@@ -451,7 +477,7 @@ bool operator <= (char *c, const kstring &s1)
     if (!c || s1.str)
         return false;
 
-    return std::strcmp(c,s1.str) <= 0;
+    return std::strcmp(c, s1.str->str) <= 0;
 };
 
 bool operator <= (const kstring & s1, const kstring & s2)
@@ -459,7 +485,7 @@ bool operator <= (const kstring & s1, const kstring & s2)
     if (!s1.str || !s2.str)
         return false;
 
-    return std::strcmp(s1.str,s2.str) <= 0;
+    return std::strcmp(s1.str->str, s2.str->str) <= 0;
 };
 
 bool operator > (const kstring & s1, char *c)
@@ -467,7 +493,7 @@ bool operator > (const kstring & s1, char *c)
     if (!c || s1.str)
         return false;
 
-    return std::strcmp(s1.str,c) > 0;
+    return std::strcmp(s1.str->str, c) > 0;
 };
 
 bool operator > (char *c, const kstring &s1)
@@ -475,7 +501,7 @@ bool operator > (char *c, const kstring &s1)
     if (!c || s1.str)
         return false;
 
-    return std::strcmp(c,s1.str) > 0;
+    return std::strcmp(c, s1.str->str) > 0;
 };
 
 bool operator > (const kstring & s1, const kstring & s2)
@@ -483,7 +509,7 @@ bool operator > (const kstring & s1, const kstring & s2)
     if (!s1.str || !s2.str)
         return false;
 
-    return std::strcmp(s1.str,s2.str) > 0;
+    return std::strcmp(s1.str->str, s2.str->str) > 0;
 };
 
 bool operator >= (const kstring & s1, char *c)
@@ -491,7 +517,7 @@ bool operator >= (const kstring & s1, char *c)
     if (!c || s1.str)
         return false;
 
-    return std::strcmp(s1.str,c) >= 0;
+    return std::strcmp(s1.str->str, c) >= 0;
 };
 
 bool operator >= (char *c, const kstring &s1)
@@ -499,7 +525,7 @@ bool operator >= (char *c, const kstring &s1)
     if (!c || s1.str)
         return false;
 
-    return std::strcmp(c, s1.str) >= 0;
+    return std::strcmp(c, s1.str->str) >= 0;
 };
 
 bool operator >= (const kstring & s1, const kstring & s2)
@@ -507,7 +533,7 @@ bool operator >= (const kstring & s1, const kstring & s2)
     if (!s1.str || !s2.str)
         return false;
 
-    return std::strcmp(s1.str,s2.str) >= 0;
+    return std::strcmp(s1.str->str, s2.str->str) >= 0;
 };
 
 bool operator != (const kstring & s1, char *c)
@@ -516,7 +542,7 @@ bool operator != (const kstring & s1, char *c)
         // if one is null but the other is not, return true.
         return !isequalnull(s1.str, c);
 
-    return std::strcmp(s1.str,c);
+    return std::strcmp(s1.str->str, c);
 };
 
 bool operator != (char *c, const kstring &s1)
@@ -530,7 +556,7 @@ bool operator != (const kstring & s1, const kstring & s2)
         // if one is null but the other is not, return true.
         return !isequalnull(s1.str, s2.str);
 
-    return std::strcmp(s1.str, s2.str);
+    return std::strcmp(s1.str->str, s2.str->str);
 };
 
 bool operator == (const kstring & s1, char *c)
@@ -539,7 +565,7 @@ bool operator == (const kstring & s1, char *c)
         // if one is null but the other is not, return true.
         return isequalnull(s1.str, c);
 
-    return std::strcmp(s1.str,c) == 0;
+    return std::strcmp(s1.str->str, c) == 0;
 };
 
 bool operator == (char *c, const kstring &s1)
@@ -553,7 +579,7 @@ bool operator == (const kstring & s1, const kstring & s2)
         // if one is null but the other is not, return true.
         return isequalnull(s1.str, s2.str);
 
-    return std::strcmp(s1.str, s2.str) == 0;
+    return std::strcmp(s1.str->str, s2.str->str) == 0;
 };
 //----END RELATIONAL SECTION----
 
@@ -563,7 +589,7 @@ char & kstring::operator [] (int index)
 {
     static char ch = 0;
     if (this->str)
-        return str[index];
+        return this->str->str[index];
     else
         return ch;
 };
@@ -572,7 +598,7 @@ const char & kstring::operator [] (int index) const
 {
     static char ch = 0;
     if (this->str)
-        return str[index];
+        return this->str->str[index];
     else
         return ch;
 };
