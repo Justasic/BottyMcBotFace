@@ -82,28 +82,70 @@ class kstring
 		inline void reserve(size_t sz) {}
 		inline size_t capacity() const {}
 		inline void shrink_to_fit() {}
-		// TODO: All insert() functions.
+
+		inline kstring &insert(size_t index, size_t count, char ch) {}
+		inline kstring &insert(size_t index, const char *s) {}
+		inline kstring &insert(size_t index, const char *s, size_t count) {}
+		inline kstring &insert(size_t index, const kstring &s) {}
+		inline kstring &insert(size_t index, const kstring &s, size_t index_str, size_t count = npos) {}
+		inline kstring &insert(size_t index, const std::string &s) {}
+		inline kstring &insert(size_t index, const std::string &s, size_t index_str, size_t count = npos) {}
+
 		inline kstring &erase(size_t index = 0, size_t count = kstring::npos) {}
 		inline void push_back(char ch) {}
 		inline void pop_back() { this->erase(this->size()-1, 1); }
+
 		// TODO: all append() functions.
+		inline kstring &append(size_t count, char ch) {}
+		inline kstring &append(const kstring &str) {}
+		inline kstring &append(const kstring &str, size_t pos, size_t count = npos) {}
+		inline kstring &append(const char *s, size_t count) {}
+		inline kstring &append(const char *s) {}
+		inline kstring &append(const std::string &str) {}
+		inline kstring &append(const std::string &str, size_t pos, size_t count = npos) {}
+
 		// TODO: all operator += functions.
+		inline kstring &operator+=(const kstring &str) {}
+		inline kstring &operator+=(const std::string &str) {}
+		inline kstring &operator+=(char ch) {}
+		inline kstring &operator+=(const char *s) {}
+		inline kstring &operator+=(std::initializer_list<char> ilist) {}
+		template<class T>
+		inline kstring &operator+=(const T& t) {}
+
 		// TODO: all compare() functions.
+		inline int compare(const kstring &str) const {}
+		inline int compare(size_t pos1, size_t count1, const kstring& str) const {}
+		inline int compare(size_t pos1, size_t count1, const kstring& str, size_t pos2, size_t count2 = npos) const {}
+		inline int compare(const std::string &str) const {}
+		inline int compare(size_t pos1, size_t count1, const std::string &str) const {}
+		inline int compare(size_t pos1, size_t count1, const std::string &str, size_t pos2, size_t count2 = npos) const {}
+		inline int compare(const char *s) const {}
+		inline int compare(size_t pos1, size_t count1, const char* s) const {}
+		inline int compare(size_t pos1, size_t count1, const char* s, size_t count2) const {}
+
 		inline bool starts_with(kstring x) const noexcept {}
 		inline bool starts_with(char x) const noexcept {}
 		inline bool starts_with(const char *x) const {}
 		inline bool ends_with(kstring x) const noexcept {}
 		inline bool ends_with(char x) const noexcept {}
 		inline bool ends_with(const char *x) const {}
+
 		// TODO: all replace() functions.
+		inline kstring &replace(size_t pos, size_t count, const kstring &str) {}
+		inline kstring &replace(size_t pos, size_t count, const kstring &str, size_t pos2, size_t count2 = npos) {}
+		inline kstring &replace(size_t pos, size_t count, const std::string &str) {}
+		inline kstring &replace(size_t pos, size_t count, const std::string &str, size_t pos2, size_t count2 = npos) {}
+		inline kstring &replace(size_t pos, size_t count, const char *str, size_t count2) {}
+		inline kstring &replace(size_t pos, size_t count, const char *cstr) {}
+		inline kstring &replace(size_t pos, size_t count, size_t count2, char ch) {}
+
 		kstring substr(size_t = 0, size_t = npos) const;
 		inline void resize(size_t count) {}
 		inline void resize(size_t count, char ch) {}
 		inline void swap(kstring &other) {}
 
 		size_t copy(char *dest, size_t count, size_t pos = 0) const;
-		// Make a deep copy of the string (aka, allocate new memory and copy the entire string byte-by-byte)
-		kstring deepcopy();
 
 		// a timing-safe compaison of strings (used for passwords)
 		bool securecmp(const kstring &);
