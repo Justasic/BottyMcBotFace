@@ -80,37 +80,19 @@ kstring::kstring(const char *copy_from, size_t len) : str(nullptr)
 //Copy constructor for a kstring.
 kstring::kstring(const kstring &copy_from) : str(nullptr)
 {
-    if (!copy_from.str)
-        return;
-
-	// hahaha this one is easy ;D
-	this->str = tmalloc<_string_t*>(copy_from.str->allocatedsz);
-	memcpy(this->str, copy_from.str, copy_from.str->allocatedsz);
-	this->str->refs = 1;
+    this->operator=(copy_from);
 };
 
 //Copy constructor for an array of chars
 kstring::kstring(const char* copy_from) : str(nullptr)
 {
-    if (!copy_from)
-        return;
-
-    size_t len = std::strlen(copy_from);
-    this->str = tmalloc<_string_t*>(sizeof(kstring::_string_t) + len);
-    this->str->allocatedsz = sizeof(kstring::_string_t) + len;
-    this->str->length = len;
-    this->str->refs++;
-    memcpy(this->str->str, copy_from, len);
+    this->operator=(copy_from);
 };
 
 // Copy constructor for a std::string
 kstring::kstring(const std::string &copy_from) : str(nullptr)
 {
-    this->str = tmalloc<_string_t*>(sizeof(kstring::_string_t) + copy_from.size());
-    this->str->allocatedsz = sizeof(kstring::_string_t) + copy_from.size();
-    this->str->length = copy_from.size();
-    this->str->refs++;
-    memcpy(this->str->str, copy_from.data(), this->str->length);
+    this->operator=(copy_from);
 }
 
 //Deconstructor
@@ -250,44 +232,53 @@ kstring kstring::contract(const kvector &_vec, const kstring &delim)
     return *this;
 }
 
-kstring & kstring::operator= (const kstring & op2)
+kstring & kstring::operator= (const kstring &copy_from)
 {
     // Idiot check
-    if (!op2.str)
+    if (!copy_from.str)
         return *this;
 
 	if (!this->isnull())
 		free(this->str);
 
-	// Honestly, it's easier to call our own constructor cuz I'm lazy
-	// This does, however, make a deep copy which is not efficient
-	// but is the same behavior as std::string
-	this->kstring(op2);
+	// hahaha this one is easy ;D
+	this->str = tmalloc<_string_t*>(copy_from.str->allocatedsz);
+	memcpy(this->str, copy_from.str, copy_from.str->allocatedsz);
+	this->str->refs = 1;
 
     return *this;
 };
 
-kstring & kstring::operator= (const std::string &op2)
+kstring & kstring::operator= (const std::string &copy_from)
 {
-	if (op2.empty())
+	if (copy_from.empty())
 		return *this;
 
 	if (!this->isnull())
 		free(this->str);
-    
-	this->kstring(op2);
+
+    this->str = tmalloc<_string_t*>(sizeof(kstring::_string_t) + copy_from.size());
+    this->str->allocatedsz = sizeof(kstring::_string_t) + copy_from.size();
+    this->str->length = copy_from.size();
+    this->str->refs++;
+    memcpy(this->str->str, copy_from.data(), this->str->length);
 
     return *this;
 }
 
-kstring & kstring::operator= (const char * op2)
+kstring & kstring::operator= (const char *copy_from)
 {
-    if (!op2)
+    if (!copy_from)
         return *this;
     if (this->str)
         free(this->str);
 
-	this->kstring(op2);
+	size_t len = std::strlen(copy_from);
+    this->str = tmalloc<_string_t*>(sizeof(kstring::_string_t) + len);
+    this->str->allocatedsz = sizeof(kstring::_string_t) + len;
+    this->str->length = len;
+    this->str->refs++;
+    memcpy(this->str->str, copy_from, len);
 
     return *this;
 };
@@ -296,8 +287,10 @@ kstring & kstring::operator= (const char ch)
 {
     if (this->str)
         free(this->str);
-	
-	this->kstring(ch);
+
+	const char string[2] = {ch, '\0'};
+    // Sorry, I know this branches but I'm lazy - Justin
+    this->operator=(string);
 
     return *this;
 }
